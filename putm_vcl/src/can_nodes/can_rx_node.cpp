@@ -265,6 +265,7 @@ void CanRxNode::can_rx_common_callback() {
         // Convert to double
         latlon.latitude = static_cast<double>(latitude * scale_lat);
         latlon.longitude = static_cast<double>(longitude * scale_lon);
+        xsens_position_publisher->publish(latlon);
         break;
       }
       case can_id<XsensRateOfTurn>:
