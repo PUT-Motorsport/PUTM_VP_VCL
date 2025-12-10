@@ -143,7 +143,7 @@ bool AmkNode::check_inv_on()
           amk_rear_left_actual_values1.amk_status.quit_inverter_on && 
           amk_rear_left_actual_values1.amk_status.quit_dc_on && 
           amk_rear_left_actual_values1.amk_status.inverter_on && 
-          amk_rear_left_actual_values1.amk_status.dc_on ) == true;
+          amk_rear_left_actual_values1.amk_status.dc_on ) == true;}
 
 bool AmkNode::all_inv_on()
 {
