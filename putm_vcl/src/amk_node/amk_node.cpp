@@ -114,14 +114,14 @@ bool AmkNode::check_inv_errors()
   //         amk_rear_right_actual_values1.amk_status.error) == true;
   // return (amk_front_right_actual_values1.amk_status.error || amk_rear_left_actual_values1.amk_status.error ||
   //         amk_rear_right_actual_values1.amk_status.error) == true;
-  return (amk_front_right_actual_values1.amk_status.error) ==  true;
+  return (amk_rear_left_actual_values1.amk_status.error) ==  true;
 }
 
 bool AmkNode::check_quit_inverter_on()
 {
   // return (!amk_front_left_actual_values1.amk_status.quit_inverter_on || !amk_front_right_actual_values1.amk_status.quit_inverter_on ||
   //         !amk_rear_left_actual_values1.amk_status.quit_inverter_on || !amk_rear_right_actual_values1.amk_status.quit_inverter_on) == false;
-  return (!amk_front_right_actual_values1.amk_status.quit_inverter_on )== false;
+  return (!amk_rear_left_actual_values1.amk_status.quit_inverter_on )== false;
           
 }
 
