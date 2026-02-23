@@ -1,6 +1,13 @@
 #pragma once
 
-#include "PUTM_DV_CAN_LIBRARY_RAII_2024/include/can_rx.hpp"
+//#include "PUTM_DV_CAN_LIBRARY_RAII_2024/include/can_rx.hpp"
+//Add new can library includes
+#include "can_driver.hpp"
+#include "PUTM_CAN_M.h" 
+#include "PUTM_CAN_PT.h"
+
+
+
 #include "putm_vcl_interfaces/msg/amk_actual_values1.hpp"
 #include "putm_vcl_interfaces/msg/amk_actual_values2.hpp"
 #include "putm_vcl_interfaces/msg/dashboard.hpp"
@@ -30,13 +37,17 @@
 
 #include "putm_vcl_interfaces/msg/bms_lv_main.hpp"
 
+
+
 class CanRxNode : public rclcpp::Node {
  public:
   CanRxNode();
 
  private:
-  PUTM_CAN::CanRx can_rx_amk;
-  PUTM_CAN::CanRx can_rx_common;
+  //PUTM_CAN::CanRx can_rx_amk;
+  //PUTM_CAN::CanRx can_rx_common;
+  putm_ev_can::CanDriver can_rx_amk;
+  putm_ev_can::CanDriver can_rx_common;
 
   rclcpp::Publisher<putm_vcl_interfaces::msg::FrontboxDriverInput>::SharedPtr frontbox_driver_input_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::FrontboxData>::SharedPtr frontbox_data_publisher;
@@ -69,11 +80,11 @@ class CanRxNode : public rclcpp::Node {
   rclcpp::Publisher<putm_vcl_interfaces::msg::XsensInertialData>::SharedPtr xsens_inertial_data_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::XsensPosition>::SharedPtr xsens_position_publisher;
 
-  rclcpp::TimerBase::SharedPtr can_rx_amk_timer;
-  rclcpp::TimerBase::SharedPtr can_rx_common_timer;
+  //rclcpp::TimerBase::SharedPtr can_rx_amk_timer;
+  //rclcpp::TimerBase::SharedPtr can_rx_common_timer;
 
-  void can_rx_amk_callback();
-  void can_rx_common_callback();
+  //void can_rx_amk_callback();
+  //void can_rx_common_callback();
 
   template <typename T>
   putm_vcl_interfaces::msg::AmkActualValues1 create_amk_actual_values1_msg(const T& can_amk);

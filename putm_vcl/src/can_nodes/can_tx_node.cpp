@@ -1,124 +1,132 @@
 #include "can_nodes/can_tx_node.hpp"
-
 #include "putm_vcl/putm_vcl.hpp"
 
-using namespace PUTM_CAN;
-using namespace putm_vcl;
 using namespace putm_vcl_interfaces;
 using namespace std::chrono_literals;
-using namespace std::chrono;
 
-using std::placeholders::_1;
+CanTxNode::CanTxNode() : Node("can_tx_node") 
+{
+    // 1. Inicjalizacja CAN
+    if (!can_tx_amk.Init(putm_vcl::can_interface_amk)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to init AMK CAN socket");
+    }
+    if (!can_tx_common.Init(putm_vcl::can_interface_common)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to init Common CAN socket");
+    }
 
-CanTxNode::CanTxNode()
-    : Node("can_tx_node"),
-      can_tx_amk(can_interface_amk),
-      can_tx_common(can_interface_common),
+    // 2. Subskrypcje Setpoints (ponieważ każdy idzie do innej struktury DBC, rozbijamy templaty dla czytelności)
+    amk_front_left_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
+        "amk/front/left/setpoints", 1, std::bind(&CanTxNode::amk_fl_setpoints_callback, this, std::placeholders::_1));
+    amk_front_right_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
+        "amk/front/right/setpoints", 1, std::bind(&CanTxNode::amk_fr_setpoints_callback, this, std::placeholders::_1));
+    amk_rear_left_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
+        "amk/rear/left/setpoints", 1, std::bind(&CanTxNode::amk_rl_setpoints_callback, this, std::placeholders::_1));
+    amk_rear_right_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
+        "amk/rear/right/setpoints", 1, std::bind(&CanTxNode::amk_rr_setpoints_callback, this, std::placeholders::_1));
 
-      amk_front_left_setpoints_subscriber(this->create_subscription<msg::AmkSetpoints>(
-          "amk/front/left/setpoints", 1, std::bind(&CanTxNode::amk_setpoints_callback<AmkFrontLeftSetpoints>, this, _1))),
-      amk_front_right_setpoints_subscriber(this->create_subscription<msg::AmkSetpoints>(
-          "amk/front/right/setpoints", 1, std::bind(&CanTxNode::amk_setpoints_callback<AmkFrontRightSetpoints>, this, _1))),
-      amk_rear_left_setpoints_subscriber(this->create_subscription<msg::AmkSetpoints>(
-          "amk/rear/left/setpoints", 1, std::bind(&CanTxNode::amk_setpoints_callback<AmkRearLeftSetpoints>, this, _1))),
-      amk_rear_right_setpoints_subscriber(this->create_subscription<msg::AmkSetpoints>(
-          "amk/rear/right/setpoints", 1, std::bind(&CanTxNode::amk_setpoints_callback<AmkRearRightSetpoints>, this, _1))),
+    // (Tu zostają Twoje subskrypcje dla actual_values1 i 2 bez zmian - używają template jak miałeś)
+    // ... rtd_subscriber itp. ...
 
-      // amk_front_left_actual_values1_subscriber(this->create_subscription<msg::AmkActualValues1>(
-      //     "amk/front/left/actual_values1", 1, std::bind(&CanTxNode::amk_actual_values1_callback<AmkFrontLeftActualValues1>, this, _1))),
-      // amk_front_right_actual_values1_subscriber(this->create_subscription<msg::AmkActualValues1>(
-      //     "amk/front/right/actual_values1", 1, std::bind(&CanTxNode::amk_actual_values1_callback<AmkFrontRightActualValues1>, this, _1))),
-      // amk_rear_left_actual_values1_subscriber(this->create_subscription<msg::AmkActualValues1>(
-      //     "amk/rear/left/actual_values1", 1, std::bind(&CanTxNode::amk_actual_values1_callback<AmkRearLeftActualValues1>, this, _1))),
-      // amk_rear_right_actual_values1_subscriber(this->create_subscription<msg::AmkActualValues1>(
-      //     "amk/rear/right/actual_values1", 1, std::bind(&CanTxNode::amk_actual_values1_callback<AmkRearRightActualValues1>, this, _1))),
+    lap_timer_subscriber = this->create_subscription<msg::LapTimer>(
+        "lap_timer", 1, std::bind(&CanTxNode::lap_timer_callback, this, std::placeholders::_1));
 
-      // amk_front_left_actual_values2_subscriber(this->create_subscription<msg::AmkActualValues2>(
-      //     "amk/front/left/actual_values2", 1, std::bind(&CanTxNode::amk_actual_values2_callback<AmkFrontLeftActualValues2>, this, _1))),
-      // amk_front_right_actual_values2_subscriber(this->create_subscription<msg::AmkActualValues2>(
-      //     "amk/front/right/actual_values2", 1, std::bind(&CanTxNode::amk_actual_values2_callback<AmkFrontRightActualValues2>, this, _1))),
-      // amk_rear_left_actual_values2_subscriber(this->create_subscription<msg::AmkActualValues2>(
-      //     "amk/rear/left/actual_values2", 1, std::bind(&CanTxNode::amk_actual_values2_callback<AmkRearLeftActualValues2>, this, _1))),
-      // amk_rear_right_actual_values2_subscriber(this->create_subscription<msg::AmkActualValues2>(
-      //     "amk/rear/right/actual_values2", 1, std::bind(&CanTxNode::amk_actual_values2_callback<AmkRearRightActualValues2>, this, _1))),
-
-      rtd_subscriber(this->create_subscription<msg::Rtd>("rtd", 1, std::bind(&CanTxNode::rtd_callback, this, _1))),
-
-      can_tx_common_timer(this->create_wall_timer(10ms, std::bind(&CanTxNode::can_tx_common_callback, this))) {}
+    can_tx_common_timer = this->create_wall_timer(10ms, std::bind(&CanTxNode::can_tx_common_callback, this));
+}
 
 void CanTxNode::rtd_callback(const msg::Rtd msg) { rtd = msg; }
 
-template <typename T>
-void CanTxNode::amk_setpoints_callback(const msg::AmkSetpoints msg) {
-  T amk_setpoints;
-  amk_setpoints.amk_control.inverter_on = msg.amk_control.inverter_on;
-  amk_setpoints.amk_control.dc_on = msg.amk_control.dc_on;
-  amk_setpoints.amk_control.enable = msg.amk_control.enable;
-  amk_setpoints.amk_control.error_reset = msg.amk_control.error_reset;
-  amk_setpoints.target_torque = msg.target_torque;
-  amk_setpoints.torque_positive_limit = msg.torque_positive_limit;
-  amk_setpoints.torque_negative_limit = msg.torque_negative_limit;
-  try {
-    can_tx_amk.transmit(amk_setpoints);
-  } catch (const std::runtime_error& e) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to transmit AMK setpoints: %s", e.what());
-  }
+void CanTxNode::lap_timer_callback(const msg::LapTimer msg){
+    PUTM_CAN_M_pc_lap_timer_data_t lap_timer = {0}; // struktura DBC
+    lap_timer.best_lap = msg.best_lap;
+    lap_timer.current_lap = msg.current_lap;
+    lap_timer.delta = msg.delta;
+    lap_timer.lap_counter = msg.lap_counter;
+
+    if (!can_tx_common.Send(PUTM_CAN_M_PC_LAP_TIMER_DATA_FRAME_ID, lap_timer)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to transmit Lap Timer");
+    }
 }
 
-template <typename T>
-void CanTxNode::amk_actual_values1_callback(const msg::AmkActualValues1 msg) {
-  T amk_actual_values1;
-  amk_actual_values1.amk_status.system_ready = msg.amk_status.system_ready;
-  amk_actual_values1.amk_status.error = msg.amk_status.error;
-  amk_actual_values1.amk_status.warn = msg.amk_status.warn;
-  amk_actual_values1.amk_status.quit_dc_on = msg.amk_status.quit_dc_on;
-  amk_actual_values1.amk_status.dc_on = msg.amk_status.dc_on;
-  amk_actual_values1.amk_status.quit_inverter_on = msg.amk_status.quit_inverter_on;
-  amk_actual_values1.amk_status.inverter_on = msg.amk_status.inverter_on;
-  amk_actual_values1.amk_status.derating = msg.amk_status.derating;
-  amk_actual_values1.actual_velocity = msg.actual_velocity;
-  amk_actual_values1.torque_current = msg.torque_current;
-  amk_actual_values1.magnetizing_current = msg.magnetizing_current;
-
-  // try {
-  //   can_tx_common.transmit(amk_actual_values1);
-  // } catch (const std::runtime_error& e) {
-  //   RCLCPP_ERROR(this->get_logger(), "Failed to transmit AMK actual values 1: %s", e.what());
-  // }
+// Setpointy dla każdego koła (używają unikalnych struktur wygenerowanych przez skrypt Pythona)
+void CanTxNode::amk_fl_setpoints_callback(const msg::AmkSetpoints& msg) {
+    PUTM_CAN_M_amk_setpoints_fl_t can_msg = {0};
+    can_msg.inverter_on = msg.amk_control.inverter_on;
+    can_msg.dc_on = msg.amk_control.dc_on;
+    can_msg.enable = msg.amk_control.enable;
+    can_msg.error_reset = msg.amk_control.error_reset;
+    can_msg.target_torque = msg.target_torque;
+    can_msg.torque_positive_limit = msg.torque_positive_limit;
+    can_msg.torque_negative_limit = msg.torque_negative_limit;
+    if (!can_tx_amk.Send(PUTM_CAN_M_AMK_SETPOINTS_FL_FRAME_ID, can_msg)) RCLCPP_ERROR(this->get_logger(), "Tx Error AMK FL");
 }
 
-template <typename T>
-void CanTxNode::amk_actual_values2_callback(const msg::AmkActualValues2 msg) {
-  T amk_actual_values2;
-  amk_actual_values2.temp_motor = msg.temp_motor;
-  amk_actual_values2.temp_inverter = msg.temp_inverter;
-  amk_actual_values2.error_info = msg.error_info;
-  amk_actual_values2.temp_igbt = msg.temp_igbt;
-
-  // try {
-  //   can_tx_common.transmit(amk_actual_values2);
-  // } catch (const std::runtime_error& e) {
-  //   RCLCPP_ERROR(this->get_logger(), "Failed to transmit AMK actual values 2: %s", e.what());
-  // }
+void CanTxNode::amk_fr_setpoints_callback(const msg::AmkSetpoints& msg) {
+    PUTM_CAN_M_amk_setpoints_fr_t can_msg = {0};
+    can_msg.inverter_on = msg.amk_control.inverter_on;
+    can_msg.dc_on = msg.amk_control.dc_on;
+    // ... mapowanie pozostałych analogicznie ...
+    if (!can_tx_amk.Send(PUTM_CAN_M_AMK_SETPOINTS_FR_FRAME_ID, can_msg)) RCLCPP_ERROR(this->get_logger(), "Tx Error AMK FR");
 }
+
+void CanTxNode::amk_rl_setpoints_callback(const msg::AmkSetpoints& msg) {
+    PUTM_CAN_M_amk_setpoints_rl_t can_msg = {0};
+    can_msg.inverter_on = msg.amk_control.inverter_on;
+    can_msg.dc_on = msg.amk_control.dc_on;
+    // ... mapowanie pozostałych analogicznie ...
+    if (!can_tx_amk.Send(PUTM_CAN_M_AMK_SETPOINTS_RL_FRAME_ID, can_msg)) RCLCPP_ERROR(this->get_logger(), "Tx Error AMK RL");
+}
+
+void CanTxNode::amk_rr_setpoints_callback(const msg::AmkSetpoints& msg) {
+    PUTM_CAN_M_amk_setpoints_rr_t can_msg = {0};
+    can_msg.inverter_on = msg.amk_control.inverter_on;
+    can_msg.dc_on = msg.amk_control.dc_on;
+    // ... mapowanie pozostałych analogicznie ...
+    if (!can_tx_amk.Send(PUTM_CAN_M_AMK_SETPOINTS_RR_FRAME_ID, can_msg)) RCLCPP_ERROR(this->get_logger(), "Tx Error AMK RR");
+}
+
 
 void CanTxNode::can_tx_common_callback() {
+    // 1. Zbieranie do PcMainData
+    PUTM_CAN_M_pc_main_data_t pc_main_data = {0};
+    pc_main_data.rtd = rtd.state;
+    pc_main_data.inverter_ready = inverter_on_rr & inverter_on_rl & inverter_on_fr; // inverter_on_fl
+    pc_main_data.vehicle_speed = (wheel_speed_rr + wheel_speed_rl + wheel_speed_fr) / 3;
+    pc_main_data.torque_current = (torque_current_rr + torque_current_rl + torque_current_fr) / 3;
+    pc_main_data.inverter_error_fr = inverter_error_fr;
+    pc_main_data.inverter_error_fl = 0;
+    pc_main_data.inverter_error_rl = inverter_error_rl;
+    pc_main_data.inverter_error_rr = inverter_error_rr;
+    pc_main_data.inverter_on_fr = inverter_on_fr;
+    pc_main_data.inverter_on_fl = 0;
+    pc_main_data.inverter_on_rr = inverter_on_rr;
+    pc_main_data.inverter_on_rl = inverter_on_rl;
 
-  PcMainData pc_main_data;
-  pc_main_data.rearLeftInverterTemperature = 0;
-  pc_main_data.rearLeftMotorTemperature =  0;
-  pc_main_data.rearRightInverterTemperature = 0;
-  pc_main_data.rearRightMotorTemperature = 0;
-  pc_main_data.rpm = 0;
-  pc_main_data.vehicleSpeed = 0;
-  pc_main_data.rtd = rtd.state;
+    // Wysyłanie PC MAIN DATA (bez try-catch!)
+    if (!can_tx_common.Send(PUTM_CAN_M_PC_MAIN_DATA_FRAME_ID, pc_main_data)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to transmit common CAN frames");
+    }
 
-  try {
-    can_tx_common.transmit(pc_main_data);
-  } catch (const std::runtime_error& e) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to transmit common CAN frames: %s", e.what());
-  }
+    amk_data_limiter_counter--;
+    if(amk_data_limiter_counter <= 0){
+        amk_data_limiter_counter = amk_data_limiter;
+        
+        PUTM_CAN_M_amk_temp_data_t amk_temp_data = {0};
+        amk_temp_data.inverter_temp_fl = 0;
+        amk_temp_data.inverter_temp_fr = inverter_temp_fr;
+        amk_temp_data.inverter_temp_rl = inverter_temp_rl;
+        amk_temp_data.inverter_temp_rr = inverter_temp_rr;
+        amk_temp_data.motor_temp_fl = 0;
+        amk_temp_data.motor_temp_fr = motor_temp_fr;
+        amk_temp_data.motor_temp_rl = motor_temp_rl;
+        amk_temp_data.motor_temp_rr = motor_temp_rr;
+
+        if (!can_tx_common.Send(PUTM_CAN_M_AMK_TEMP_DATA_FRAME_ID, amk_temp_data)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to transmit AmkTempData frames");
+        }
+    }
 }
+
+// ... zostaw resztę z template'ami do odbierania wartości od AMK jak miałeś ...
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
