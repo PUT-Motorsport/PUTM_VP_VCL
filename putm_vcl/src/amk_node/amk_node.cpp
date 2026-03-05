@@ -308,7 +308,7 @@ void AmkNode::on_update(StateMachine state)
 
     amk_rear_right_setpoints.torque_positive_limit = 2000;
     amk_rear_right_setpoints.torque_negative_limit = -2000;
-    amk_rear_right_setpoints.target_torque = -setpoints.rear_right.torque;
+    amk_rear_right_setpoints.target_torque = 0;
     if (amk_front_right_actual_values1.actual_velocity > 20000 || amk_rear_left_actual_values1.actual_velocity > 20000 || amk_rear_right_actual_values1.actual_velocity > 20000){
     // if (amk_front_left_actual_values1.actual_velocity > 20000 || amk_front_right_actual_values1.actual_velocity > 20000 || amk_rear_left_actual_values1.actual_velocity > 20000 || amk_rear_right_actual_values1.actual_velocity > 20000){
       amk_front_left_setpoints.target_torque = 0;
