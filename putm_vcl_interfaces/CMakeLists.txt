@@ -40,7 +40,10 @@ rosidl_generate_interfaces(
   "msg/Xsens/XsensVelocity.msg"
   "msg/BmsHvMain/BmsHvMain.msg"
   "msg/BmsLvMain/BmsLvMain.msg"
-  "msg/VpData/YawRef.msg")
+  "msg/VpData/YawRef.msg"
+  "msg/PduData.msg"      
+  "msg/PduChannel.msg"    
+  "msg/LapTimer.msg")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

@@ -1,0 +1,7 @@
+uint8 pc_current
+uint8 pump_current
+uint8 fan_current
+uint8 inverter_current
+uint8 fbox_current
+uint8 sdc_current
+uint16 total_current

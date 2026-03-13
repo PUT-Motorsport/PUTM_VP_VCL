@@ -1,0 +1,10 @@
+uint8 pc_status
+uint8 fan_status
+uint8 pump_status
+uint8 inverter_status
+uint8 fbox_status
+uint8 sdc_status
+uint8 dash_status
+uint8 tsal_hv_status
+uint8 rbox_diagport_brake_l_status
+uint8 brake_ir_air_status
