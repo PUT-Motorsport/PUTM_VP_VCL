@@ -1,433 +1,235 @@
 #include "can_nodes/can_rx_node.hpp"
-
 #include "putm_vcl/putm_vcl.hpp"
 
-using namespace PUTM_CAN;
 using namespace putm_vcl;
 using namespace putm_vcl_interfaces;
-using namespace std::chrono_literals;
 
-CanRxNode::CanRxNode()
-    : Node("can_rx_node"),
-      can_rx_amk(can_interface_amk, NO_TIMEOUT),
-      can_rx_common(can_interface_common, NO_TIMEOUT),
+CanRxNode::CanRxNode() : Node("can_rx_node") {
+    // Inicjalizacja publisherów
+    frontbox_driver_input_publisher = this->create_publisher<msg::FrontboxDriverInput>("frontbox_driver_input", 1);
+    frontbox_data_publisher = this->create_publisher<msg::FrontboxData>("frontbox_data", 1);
+    bms_hv_main_publisher = this->create_publisher<msg::BmsHvMain>("bms_hv_main", 1);
+    bms_lv_main_publisher = this->create_publisher<msg::BmsLvMain>("bms_lv_main", 1);
+    pdu_data_publisher = this->create_publisher<msg::PduData>("pdu_data", 1);
+    pdu_channel_publisher = this->create_publisher<msg::PduChannel>("pdu_channel", 1);
+    dashboard_publisher = this->create_publisher<msg::Dashboard>("dashboard", 1);
 
-      frontbox_driver_input_publisher(this->create_publisher<msg::FrontboxDriverInput>("frontbox_driver_input", 1)),
-      frontbox_data_publisher(this->create_publisher<msg::FrontboxData>("frontbox_data", 1)),
-      bms_hv_main_publisher(this->create_publisher<msg::BmsHvMain>("bms_hv_main", 1)),
-      bms_lv_main_publisher(this->create_publisher<msg::BmsLvMain>("bms_lv_main", 1)),
-      
-      pdu_data_publisher(this->create_publisher<msg::PduData>("pdu_data",1)),
-      pdu_channel_publisher(this->create_publisher<msg::PduChannel>("pdu_channel",1)),
+    amk_front_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", 1);
+    amk_front_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/left/actual_values2", 1);
+    amk_front_right_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/right/actual_values1", 1);
+    amk_front_right_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/right/actual_values2", 1);
+    amk_rear_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/rear/left/actual_values1", 1);
+    amk_rear_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/rear/left/actual_values2", 1);
+    amk_rear_right_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/rear/right/actual_values1", 1);
+    amk_rear_right_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/rear/right/actual_values2", 1);
 
-
-      amk_front_left_actual_values1_publisher(this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", 1)),
-      amk_front_left_actual_values2_publisher(this->create_publisher<msg::AmkActualValues2>("amk/front/left/actual_values2", 1)),
-
-      amk_front_right_actual_values1_publisher(this->create_publisher<msg::AmkActualValues1>("amk/front/right/actual_values1", 1)),
-      amk_front_right_actual_values2_publisher(this->create_publisher<msg::AmkActualValues2>("amk/front/right/actual_values2", 1)),
-
-      amk_rear_left_actual_values1_publisher(this->create_publisher<msg::AmkActualValues1>("amk/rear/left/actual_values1", 1)),
-      amk_rear_left_actual_values2_publisher(this->create_publisher<msg::AmkActualValues2>("amk/rear/left/actual_values2", 1)),
-
-      amk_rear_right_actual_values1_publisher(this->create_publisher<msg::AmkActualValues1>("amk/rear/right/actual_values1", 1)),
-      amk_rear_right_actual_values2_publisher(this->create_publisher<msg::AmkActualValues2>("amk/rear/right/actual_values2", 1)),
-      
-
-      dashboard_publisher(this->create_publisher<msg::Dashboard>("dashboard", 1)),
-
-      xsens_acceleration_publisher(this->create_publisher<msg::XsensAcceleration>("xsens_acceleration", 1)),
-      xsens_temp_and_pressure_publisher(this->create_publisher<msg::XsensTempAndPressure>("xsens_temp", 1)),
-      xsens_utc_publisher(this->create_publisher<msg::XsensUtc>("xsens_utc", 1)),
-      xsens_euler_publisher(this->create_publisher<msg::XsensEuler>("xsens_euler_publisher", 1)),
-      xsens_rate_of_turn_publisher(this->create_publisher<msg::XsensRateOfTurn>("xsens_rate_of_turn", 1)),
-      xsens_orientation_publisher(this->create_publisher<msg::XsensOrientation>("xsens_orientation", 1)),
-      xsens_velocity_publisher(this->create_publisher<msg::XsensVelocity>("xsens_velocity", 1)),
-      xsens_inertial_data_publisher(this->create_publisher<msg::XsensInertialData>("xsens_dv", 1)),
-      xsens_position_publisher(this->create_publisher<msg::XsensPosition>("xsens_position", 1)),
-
-      can_rx_amk_timer(this->create_wall_timer(1ms, std::bind(&CanRxNode::can_rx_amk_callback, this))),
-      can_rx_common_timer(this->create_wall_timer(1ms, std::bind(&CanRxNode::can_rx_common_callback, this))) {}
-
-void CanRxNode::can_rx_common_callback() {
-  can_frame frame;
-  try {
-    frame = can_rx_common.receive();
-  } catch (const std::runtime_error& e) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to receive common CAN frame: %s", e.what());
-    return;
-  }
-
-  try {
-    switch (frame.can_id) {
-      case can_id<FrontboxDriverInput>: {
-        auto can_frontbox_driver_input = convert<FrontboxDriverInput>(frame);
-        msg::FrontboxDriverInput frontbox_driver_input;
-        frontbox_driver_input.pedal_position = can_frontbox_driver_input.pedal_position;
-        frontbox_driver_input.brake_pressure_front = can_frontbox_driver_input.brake_pressure_front;
-        frontbox_driver_input.brake_pressure_rear = can_frontbox_driver_input.brake_pressure_rear;
-        frontbox_driver_input.steering_wheel_position = can_frontbox_driver_input.steering_wheel_position;
-        frontbox_driver_input_publisher->publish(frontbox_driver_input);
-        break;
-      }
-
-      case can_id<FrontboxData>: {
-        auto can_frontbox_data = convert<FrontboxData>(frame);
-        msg::FrontboxData frontbox_data;
-        frontbox_data.front_left_suspension = can_frontbox_data.front_left_suspension;
-        frontbox_data.front_right_suspension = can_frontbox_data.front_right_suspension;
-        
-        frontbox_data.sense_left_kill = can_frontbox_data.sense_left_kill;
-        frontbox_data.sense_right_kill = can_frontbox_data.sense_right_kill;
-        frontbox_data.sense_driver_kill = can_frontbox_data.sense_driver_kill;
-        frontbox_data.sense_inertia = can_frontbox_data.sense_inertia;
-        frontbox_data.sense_bspd = can_frontbox_data.sense_bspd;
-        frontbox_data.sense_overtravel = can_frontbox_data.sense_overtravel;
-
-        frontbox_data.sense_suspension_fl = can_frontbox_data.sense_suspension_fl;
-        frontbox_data.sense_suspension_fr = can_frontbox_data.sense_suspension_fr;
-        frontbox_data.is_braking = can_frontbox_data.is_braking;
-
-        frontbox_data.apps = can_frontbox_data.apps;
-        frontbox_data.apps_implausibility = can_frontbox_data.apps_implausibility;
-
-        frontbox_data_publisher->publish(frontbox_data);
-        break;
-      }
-      case can_id<PduData>:{
-        auto can_pdu_data = convert<PduData>(frame);
-        msg::PduData pdu_data;
-        pdu_data.pc_current  = can_pdu_data.pc_current;
-        pdu_data.pump_current = can_pdu_data.pump_current;
-        pdu_data.fan_current = can_pdu_data.fan_current;
-        pdu_data.inverter_current = can_pdu_data.inverter_current;
-        pdu_data.fbox_current= can_pdu_data.fbox_current;
-        pdu_data.sdc_current = can_pdu_data.sdc_current;
-        pdu_data.total_current = can_pdu_data.total_current;
-        pdu_data_publisher->publish(pdu_data);
-        break;
-      }
-      case can_id<PduChannel>:{
-        auto can_pdu_channel = convert<PduChannel>(frame);
-        msg::PduChannel pdu_channel;
-        pdu_channel.pc_status = can_pdu_channel.pc_status;
-        pdu_channel.fan_status = can_pdu_channel.fan_status;
-        pdu_channel.pump_status = can_pdu_channel.pump_status;
-        pdu_channel.inverter_status = can_pdu_channel.inverter_status;
-        pdu_channel.fbox_status = can_pdu_channel.fbox_status;
-        pdu_channel.sdc_status= can_pdu_channel.sdc_status;
-        pdu_channel.dash_status = can_pdu_channel.dash_status;
-        pdu_channel.tsal_hv_status = can_pdu_channel.tsal_hv_status;
-        pdu_channel.rbox_diagport_brake_l_status = can_pdu_channel.rbox_diagport_brake_l_status;
-        pdu_channel.brake_ir_air_status = can_pdu_channel.brake_ir_air_status;
-        pdu_channel_publisher->publish(pdu_channel);
-        break;
-      }
-
-      case can_id<BmsHvMain>: {
-        auto can_bms_hv_main = convert<BmsHvMain>(frame);
-        msg::BmsHvMain bms_hv_main;
-        bms_hv_main.voltage_sum = can_bms_hv_main.voltage_sum;
-        bms_hv_main.current = can_bms_hv_main.current;
-        bms_hv_main.temp_max = can_bms_hv_main.temp_max;
-        bms_hv_main.temp_avg = can_bms_hv_main.temp_avg;
-        bms_hv_main.soc = can_bms_hv_main.soc;
-        bms_hv_main_publisher->publish(bms_hv_main);
-        break;
-      }
-      case can_id<BmsLvMain>: {
-        auto can_bms_lv_main = convert<BmsLvMain>(frame);
-        msg::BmsLvMain bms_lv_main;
-        bms_lv_main.voltage_sum = can_bms_lv_main.voltage_sum;
-        bms_lv_main.soc = can_bms_lv_main.soc;
-        bms_lv_main.temp_avg = can_bms_lv_main.temp_avg;
-        bms_lv_main.current = can_bms_lv_main.current;
-        bms_lv_main_publisher->publish(bms_lv_main);
-        break;
-      }
-
-      case can_id<Dashboard>: {
-        auto can_dashboard = convert<Dashboard>(frame);
-        msg::Dashboard dashboard;
-        dashboard.rtd_button = can_dashboard.rtd_button;
-        dashboard.ts_activate_button = can_dashboard.ts_activate_button;
-        dashboard.rfu_button = can_dashboard.rfu_button;
-        dashboard_publisher->publish(dashboard);
-        break;
-      }
-
-      case can_id<XsensAcceleration>:
-      {
-        msg::XsensAcceleration xsens_acceleration;
-
-        double scale = 1.0 / (1 << 8); // 0.00390625
-        float *acc_arr[] = {&xsens_acceleration.acc_x, &xsens_acceleration.acc_y, &xsens_acceleration.acc_z};
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-          int16_t value = static_cast<int16_t>((frame.data[2 * i] << 8) | frame.data[2 * i + 1]);
-          *acc_arr[i] = static_cast<float>(value * scale);
-        }
-        xsens_acceleration_publisher->publish(xsens_acceleration);
-        break;
-      }
-      case can_id<XsensAccelerationHighRate>:
-      {
-        break;
-      }
-      case can_id<XsensAltitudeEllipsoid>:
-      {
-        break;
-      }
-      case can_id<XsensDeltaQ>:
-      {
-        break;
-      }
-      case can_id<XsensError>:
-      {
-        break;
-      }
-      case can_id<XsensEuler>:
-      {
-        msg::XsensEuler euler;
-        double scale = 1.0 / (1 << 7); // 0.0078125
-        float *euler_arr[] = {&euler.roll, &euler.pitch, &euler.yaw};
-        for (size_t i = 0; i < 3; ++i)
-        {
-          int16_t value = static_cast<int16_t>((frame.data[2 * i] << 8) | frame.data[2 * i + 1]);
-          *euler_arr[i] = static_cast<float>(value * scale);
-        }
-        xsens_euler_publisher->publish(euler);
-        break;
-      }
-      case can_id<XsensFreeAcceleration>:
-      {
-        break;
-      }
-      case can_id<XsensInertialData>:
-      {
-        msg::XsensInertialData dv;
-        uint8_t exponent = frame.data[6];
-        double scale = 1.0 / (1 << exponent) ;
-        float *dv_arr[] = {&dv.x, &dv.y, &dv.z}; 
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-          // Combine two bytes to make a 16-bit signed integer
-          int16_t value = static_cast<int16_t>((frame.data[2 * i] << 8) | frame.data[2 * i + 1]);
-          // Scale the value and store it in the dv
-          *dv_arr[i] = static_cast<float>(value * scale);
-        }
-        xsens_inertial_data_publisher->publish(dv);
-        break;
-      }
-      case can_id<XsensMagneticField>:
-      {
-        break;
-      }
-      case can_id<XsensOrientation>:
-      {
-        msg::XsensOrientation q;
-        double scale = 1.0 / ((1 << 15) - 1);
-        float *q_arr[] = {&q.q0, &q.q1, &q.q2, &q.q3}; // Array of pointers to quaternion components
-
-        for (size_t i = 0; i < 4; ++i)
-        {
-          // Combine two bytes to make a 16-bit signed integer
-          int16_t value = static_cast<int16_t>((frame.data[2 * i] << 8) | frame.data[2 * i + 1]);
-          // Scale the value and store it in the quaternion
-          *q_arr[i] = static_cast<float>(value * scale);
-        }
-        xsens_orientation_publisher->publish(q);
-
-        break;
-      }
-      case can_id<XsensPosition>:
-      {
-        msg::XsensPosition latlon;
-        uint32_t latitude = 0;
-        uint32_t longitude = 0;
-        double scale_lat = 1.0 / (1 << 24); // 5.9604644775e-08
-        double scale_lon = 1.0 / (1 << 23); // 1.1920928955e-07
-
-        // Unpack and assemble latitude
-        latitude |= static_cast<uint32_t>(frame.data[0]) << 24;
-        latitude |= static_cast<uint32_t>(frame.data[1]) << 16;
-        latitude |= static_cast<uint32_t>(frame.data[2]) << 8;
-        latitude |= static_cast<uint32_t>(frame.data[3]);
-
-        // Unpack and assemble longitude
-        longitude |= static_cast<uint32_t>(frame.data[4]) << 24;
-        longitude |= static_cast<uint32_t>(frame.data[5]) << 16;
-        longitude |= static_cast<uint32_t>(frame.data[6]) << 8;
-        longitude |= static_cast<uint32_t>(frame.data[7]);
-
-        // Convert to double
-        latlon.latitude = static_cast<double>(latitude * scale_lat);
-        latlon.longitude = static_cast<double>(longitude * scale_lon);
-        break;
-      }
-      case can_id<XsensRateOfTurn>:
-      {
-        msg::XsensRateOfTurn gyro;
-        double scale = 1.0 / (1 << 9); // 0.001953125
-        float *gyro_arr[] = {&gyro.gyr_x, &gyro.gyr_y, &gyro.gyr_z};
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-          int16_t value = static_cast<int16_t>((frame.data[2 * i] << 8) | frame.data[2 * i + 1]);
-          *gyro_arr[i] = static_cast<float>(value * scale);
-        }
-        xsens_rate_of_turn_publisher->publish(gyro);
-        break;
-      }
-      case can_id<XsensRateOfTurnHighRate>:
-      {
-        break;
-      }
-      case can_id<XsensStatus>:
-      {
-        break;
-      }
-      case can_id<XsensTemperatureAndPressure>:
-      {
-        msg::XsensTempAndPressure xsens_t_and_p;
-
-        uint16_t temperature = 0;
-        double scale = 1.0 / (1 << 8);
-
-        temperature |= static_cast<uint16_t>(frame.data[0]) << 8;  // MSB
-        temperature |= static_cast<uint16_t>(frame.data[1]);       // LSB
-
-        xsens_t_and_p.temperature = static_cast<float>(temperature * scale);
-        xsens_temp_and_pressure_publisher->publish(xsens_t_and_p);
-        break;
-      }
-      case can_id<XsensUtc>:
-      {
-        // auto can_xsens_utc = convert<XsensUtc>(frame);
-        // msg::XsensUtc xsens_utc_m;
-        // xsens_utc_publisher->publish(xsens_utc_m);
-        // RCLCPP_INFO(this->get_logger(), "%d", xsens_utc_m.day);
-        // break;
-      }
-      case can_id<XsensVelocity>:
-      {
-        msg::XsensVelocity vel;
-        double scale = 1.0 / (1 << 6); // 0.015625
-        float *vel_arr[3] = {&vel.x, &vel.y, &vel.z};
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-            int16_t value = static_cast<int16_t>((frame.data[2 * i] << 8) | frame.data[2 * i + 1]);
-            *vel_arr[i] = static_cast<float>(value * scale);
-        }
-        xsens_velocity_publisher->publish(vel);
-        break;
-      }
+    // 1. Inicjalizacja magistral
+    if (!can_rx_amk.Init(can_interface_amk)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to init AMK CAN interface");
     }
-  } catch (const std::runtime_error& e) {
-    //RCLCPP_ERROR(this->get_logger(), "Failed to convert common CAN frame: %s", e.what());
-  }
-}
-
-void CanRxNode::can_rx_amk_callback() {
-  can_frame frame;
-  try {
-    frame = can_rx_amk.receive();
-  } catch (const std::runtime_error& e) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to receive AMK CAN frame: %s", e.what());
-    return;
-  }
-
-  try {
-    switch (frame.can_id) {
-      case can_id<AmkFrontLeftActualValues1>: {
-        auto can_amk = convert<AmkFrontLeftActualValues1>(frame);
-        auto amk_actual_values1 = create_amk_actual_values1_msg(can_amk);
-        amk_front_left_actual_values1_publisher->publish(amk_actual_values1);
-        break;
-      }
-
-      case can_id<AmkFrontRightActualValues1>: {
-        auto can_amk = convert<AmkFrontRightActualValues1>(frame);
-        auto amk_actual_values1 = create_amk_actual_values1_msg(can_amk);
-        amk_front_right_actual_values1_publisher->publish(amk_actual_values1);
-        break;
-      }
-
-      case can_id<AmkRearLeftActualValues1>: {
-        auto can_amk = convert<AmkRearLeftActualValues1>(frame);
-        auto amk_actual_values1 = create_amk_actual_values1_msg(can_amk);
-        amk_rear_left_actual_values1_publisher->publish(amk_actual_values1);
-        break;
-      }
-
-      case can_id<AmkRearRightActualValues1>: {
-        auto can_amk = convert<AmkRearRightActualValues1>(frame);
-        auto amk_actual_values1 = create_amk_actual_values1_msg(can_amk);
-        amk_rear_right_actual_values1_publisher->publish(amk_actual_values1);
-        break;
-      }
-
-      case can_id<AmkFrontLeftActualValues2>: {
-        auto can_amk = convert<AmkFrontLeftActualValues2>(frame);
-        auto amk_actual_values2 = create_amk_actual_values2_msg(can_amk);
-        amk_front_left_actual_values2_publisher->publish(amk_actual_values2);
-        break;
-      }
-
-      case can_id<AmkFrontRightActualValues2>: {
-        auto can_amk = convert<AmkFrontRightActualValues2>(frame);
-        auto amk_actual_values2 = create_amk_actual_values2_msg(can_amk);
-        amk_front_right_actual_values2_publisher->publish(amk_actual_values2);
-        break;
-      }
-
-      case can_id<AmkRearLeftActualValues2>: {
-        auto can_amk = convert<AmkRearLeftActualValues2>(frame);
-        auto amk_actual_values2 = create_amk_actual_values2_msg(can_amk);
-        amk_rear_left_actual_values2_publisher->publish(amk_actual_values2);
-        break;
-      }
-
-      case can_id<AmkRearRightActualValues2>: {
-        auto can_amk = convert<AmkRearRightActualValues2>(frame);
-        auto amk_actual_values2 = create_amk_actual_values2_msg(can_amk);
-        amk_rear_right_actual_values2_publisher->publish(amk_actual_values2);
-        break;
-      }
+    if (!can_rx_common.Init(can_interface_common)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to init Common CAN interface");
     }
-  } catch (const std::runtime_error& e) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to convert AMK CAN frame: %s", e.what());
-  }
-}
 
-template <typename T>
-msg::AmkActualValues1 CanRxNode::create_amk_actual_values1_msg(const T& can_amk) {
-  msg::AmkActualValues1 amk_actual_values1;
-  amk_actual_values1.amk_status.system_ready = can_amk.amk_status.system_ready;
-  amk_actual_values1.amk_status.error = can_amk.amk_status.error;
-  amk_actual_values1.amk_status.warn = can_amk.amk_status.warn;
-  amk_actual_values1.amk_status.quit_dc_on = can_amk.amk_status.quit_dc_on;
-  amk_actual_values1.amk_status.dc_on = can_amk.amk_status.dc_on;
-  amk_actual_values1.amk_status.quit_inverter_on = can_amk.amk_status.quit_inverter_on;
-  amk_actual_values1.amk_status.inverter_on = can_amk.amk_status.inverter_on;
-  amk_actual_values1.amk_status.derating = can_amk.amk_status.derating;
-  amk_actual_values1.actual_velocity = can_amk.actual_velocity;
-  amk_actual_values1.torque_current = can_amk.torque_current;
-  amk_actual_values1.magnetizing_current = can_amk.magnetizing_current;
-  return amk_actual_values1;
-}
+    // 2. Rejestracja zdarzeń dla COMMON (szyna główna)
+    
+    can_rx_common.RegisterCallback<PUTM_CAN_M_driver_input_t>(
+        PUTM_CAN_M_DRIVER_INPUT_FRAME_ID,
+        [this](const PUTM_CAN_M_driver_input_t& frame) {
+            msg::FrontboxDriverInput ros_msg;
+            ros_msg.pedal_position = frame.pedal_position;
+            ros_msg.brake_pressure_front = frame.brake_pressure_front;
+            ros_msg.brake_pressure_rear = frame.brake_pressure_rear;
+            ros_msg.steering_wheel_position = frame.steering_wheel_position;
+            frontbox_driver_input_publisher->publish(ros_msg);
+        });
 
-template <typename T>
-msg::AmkActualValues2 CanRxNode::create_amk_actual_values2_msg(const T& can_amk) {
-  msg::AmkActualValues2 amk_actual_values2;
-  amk_actual_values2.temp_motor = can_amk.temp_motor;
-  amk_actual_values2.temp_inverter = can_amk.temp_inverter;
-  amk_actual_values2.error_info = can_amk.error_info;
-  amk_actual_values2.temp_igbt = can_amk.temp_igbt;
-  return amk_actual_values2;
+    can_rx_common.RegisterCallback<PUTM_CAN_M_front_data_t>(
+        PUTM_CAN_M_FRONT_DATA_FRAME_ID,
+        [this](const PUTM_CAN_M_front_data_t& frame) {
+            msg::FrontboxData ros_msg;
+            ros_msg.front_left_suspension = frame.front_left_suspension;
+            ros_msg.front_right_suspension = frame.front_right_suspension;
+            ros_msg.sense_left_kill = frame.sense_left_kill;
+            ros_msg.sense_right_kill = frame.sense_right_kill;
+            ros_msg.sense_driver_kill = frame.sense_driver_kill;
+            ros_msg.sense_inertia = frame.sense_inertia;
+            ros_msg.sense_bspd = frame.sense_bspd;
+            ros_msg.sense_overtravel = frame.sense_overtravel;
+            ros_msg.sense_suspension_fl = frame.safety_suspension_fl;
+            ros_msg.sense_suspension_fr = frame.safety_suspension_fr;
+            ros_msg.is_braking = frame.is_braking;
+            ros_msg.apps = frame.apps;
+            ros_msg.apps_implausibility = frame.apps_implausibility;
+            frontbox_data_publisher->publish(ros_msg);
+        });
+
+    can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_data_t>(
+        PUTM_CAN_M_PDU_DATA_FRAME_ID,
+        [this](const PUTM_CAN_M_pdu_data_t& frame) {
+            msg::PduData ros_msg;
+            ros_msg.pc_current = frame.pc_current;
+            ros_msg.pump_current = frame.pump_current;
+            ros_msg.fan_current = frame.fan_current;
+            ros_msg.inverter_current = frame.inverter_current;
+            ros_msg.fbox_current = frame.fbox_current;
+            ros_msg.sdc_current = frame.sdc_current;
+            ros_msg.total_current = frame.total_current;
+            pdu_data_publisher->publish(ros_msg);
+        });
+
+    can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_channnel_t>(
+        PUTM_CAN_M_PDU_CHANNNEL_FRAME_ID,
+        [this](const PUTM_CAN_M_pdu_channnel_t& frame) {
+            msg::PduChannel ros_msg;
+            ros_msg.pc_status = frame.pc_status;
+            ros_msg.fan_status = frame.fan_status;
+            ros_msg.pump_status = frame.pump_status;
+            ros_msg.inverter_status = frame.inverter_status;
+            ros_msg.fbox_status = frame.fbox_status;
+            ros_msg.sdc_status = frame.sdc_status;
+            ros_msg.dash_status = frame.dash_status;
+            ros_msg.tsal_hv_status = frame.tsal_hv_status;
+            ros_msg.rbox_diagport_brake_l_status = frame.rbox_diagport_brake_l_status;
+            ros_msg.brake_ir_air_status = frame.brake_ir_air_status;
+            pdu_channel_publisher->publish(ros_msg);
+        });
+
+    can_rx_common.RegisterCallback<PUTM_CAN_M_bms_hv_main_t>(
+        PUTM_CAN_M_BMS_HV_MAIN_FRAME_ID,
+        [this](const PUTM_CAN_M_bms_hv_main_t& frame) {
+            msg::BmsHvMain ros_msg;
+            ros_msg.voltage_sum = frame.voltage_sum;
+            ros_msg.current = frame.current;
+            ros_msg.temp_max = frame.temp_max;
+            ros_msg.temp_avg = frame.temp_avg;
+            ros_msg.soc = frame.soc;
+            bms_hv_main_publisher->publish(ros_msg);
+        });
+
+    can_rx_common.RegisterCallback<PUTM_CAN_M_bms_lv_main_t>(
+        PUTM_CAN_M_BMS_LV_MAIN_FRAME_ID,
+        [this](const PUTM_CAN_M_bms_lv_main_t& frame) {
+            msg::BmsLvMain ros_msg;
+            ros_msg.voltage_sum = frame.voltage_sum;
+            ros_msg.soc = frame.soc;
+            ros_msg.temp_avg = frame.temp_avg;
+            ros_msg.current = frame.current;
+            bms_lv_main_publisher->publish(ros_msg);
+        });
+
+    can_rx_common.RegisterCallback<PUTM_CAN_M_dashboard_t>(
+        PUTM_CAN_M_DASHBOARD_FRAME_ID,
+        [this](const PUTM_CAN_M_dashboard_t& frame) {
+            msg::Dashboard ros_msg;
+            ros_msg.rtd_button = frame.ready_to_drive_button;
+            ros_msg.ts_activate_button = frame.ts_activation_button;
+            ros_msg.rfu_button = frame.user_button;
+            dashboard_publisher->publish(ros_msg);
+        });
+
+    // 3. Rejestracja zdarzeń dla PT (AMK Inverters)
+
+    // FL - AmkFrontLeftActualValues1
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_front_left_actual_values1_t>(
+        PUTM_CAN_PT_AMK_FRONT_LEFT_ACTUAL_VALUES1_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_front_left_actual_values1_t& f) {
+            msg::AmkActualValues1 msg;
+            msg.amk_status.system_ready = f.amk_b_system_ready;
+            msg.amk_status.error = f.amk_b_error;
+            msg.amk_status.warn = f.amk_b_warn;
+            msg.amk_status.dc_on = f.amk_b_dc_on;
+            msg.amk_status.inverter_on = f.amk_b_inverter_on;
+            msg.actual_velocity = f.amk_actual_velocity;
+            msg.torque_current = f.amk_torque_current;
+            amk_front_left_actual_values1_publisher->publish(msg);
+        });
+
+    // FR - AmkFrontRightActualValues1
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_front_right_actual_values1_t>(
+        PUTM_CAN_PT_AMK_FRONT_RIGHT_ACTUAL_VALUES1_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_front_right_actual_values1_t& f) {
+            msg::AmkActualValues1 msg;
+            msg.amk_status.system_ready = f.amk_b_system_ready;
+            msg.amk_status.error = f.amk_b_error;
+            msg.amk_status.warn = f.amk_b_warn;
+            msg.amk_status.dc_on = f.amk_b_dc_on;
+            msg.amk_status.inverter_on = f.amk_b_inverter_on;
+            msg.actual_velocity = f.amk_actual_velocity;
+            msg.torque_current = f.amk_torque_current;
+            amk_front_right_actual_values1_publisher->publish(msg);
+        });
+
+    // RL - AmkRearLeftActualValues1
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_rear_left_actual_values1_t>(
+        PUTM_CAN_PT_AMK_REAR_LEFT_ACTUAL_VALUES1_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_rear_left_actual_values1_t& f) {
+            msg::AmkActualValues1 msg;
+            msg.amk_status.system_ready = f.amk_b_system_ready;
+            msg.amk_status.error = f.amk_b_error;
+            msg.amk_status.warn = f.amk_b_warn;
+            msg.amk_status.dc_on = f.amk_b_dc_on;
+            msg.amk_status.inverter_on = f.amk_b_inverter_on;
+            msg.actual_velocity = f.amk_actual_velocity;
+            msg.torque_current = f.amk_torque_current;
+            amk_rear_left_actual_values1_publisher->publish(msg);
+        });
+
+    // RR - AmkRearRightActualValues1
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_rear_right_actual_values1_t>(
+        PUTM_CAN_PT_AMK_REAR_RIGHT_ACTUAL_VALUES1_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_rear_right_actual_values1_t& f) {
+            msg::AmkActualValues1 msg;
+            msg.amk_status.system_ready = f.amk_b_system_ready;
+            msg.amk_status.error = f.amk_b_error;
+            msg.amk_status.warn = f.amk_b_warn;
+            msg.amk_status.dc_on = f.amk_b_dc_on;
+            msg.amk_status.inverter_on = f.amk_b_inverter_on;
+            msg.actual_velocity = f.amk_actual_velocity;
+            msg.torque_current = f.amk_torque_current;
+            amk_rear_right_actual_values1_publisher->publish(msg);
+        });
+
+    // AmkActualValues2 (FL, FR, RL, RR)
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_front_left_actual_values2_t>(
+        PUTM_CAN_PT_AMK_FRONT_LEFT_ACTUAL_VALUES2_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_front_left_actual_values2_t& f) {
+            msg::AmkActualValues2 msg;
+            msg.temp_motor = f.amk_temp_motor;
+            msg.temp_inverter = f.amk_temp_inverter;
+            msg.error_info = f.amk_diagnosis_no;
+            amk_front_left_actual_values2_publisher->publish(msg);
+        });
+
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_front_right_actual_values2_t>(
+        PUTM_CAN_PT_AMK_FRONT_RIGHT_ACTUAL_VALUES2_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_front_right_actual_values2_t& f) {
+            msg::AmkActualValues2 msg;
+            msg.temp_motor = f.amk_temp_motor;
+            msg.temp_inverter = f.amk_temp_inverter;
+            msg.error_info = f.amk_diagnosis_no;
+            amk_front_right_actual_values2_publisher->publish(msg);
+        });
+
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_rear_left_actual_values2_t>(
+        PUTM_CAN_PT_AMK_REAR_LEFT_ACTUAL_VALUES2_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_rear_left_actual_values2_t& f) {
+            msg::AmkActualValues2 msg;
+            msg.temp_motor = f.amk_temp_motor;
+            msg.temp_inverter = f.amk_temp_inverter;
+            msg.error_info = f.amk_diagnosis_no;
+            amk_rear_left_actual_values2_publisher->publish(msg);
+        });
+
+    can_rx_amk.RegisterCallback<PUTM_CAN_PT_amk_rear_right_actual_values2_t>(
+        PUTM_CAN_PT_AMK_REAR_RIGHT_ACTUAL_VALUES2_FRAME_ID,
+        [this](const PUTM_CAN_PT_amk_rear_right_actual_values2_t& f) {
+            msg::AmkActualValues2 msg;
+            msg.temp_motor = f.amk_temp_motor;
+            msg.temp_inverter = f.amk_temp_inverter;
+            msg.error_info = f.amk_diagnosis_no;
+            amk_rear_right_actual_values2_publisher->publish(msg);
+        });
 }
 
 int main(int argc, char** argv) {
