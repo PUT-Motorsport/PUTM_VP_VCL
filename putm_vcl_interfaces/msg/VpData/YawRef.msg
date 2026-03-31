@@ -1,1 +1,13 @@
 float32 yaw_rate_ref
+float32 est_batt_curr
+float32 current_change
+float32 torque_fixed
+float32 est_power
+float32 ifl
+float32 ufl
+float32 ifr
+float32 ufr
+float32 irl
+float32 url
+float32 irr
+float32 urr
