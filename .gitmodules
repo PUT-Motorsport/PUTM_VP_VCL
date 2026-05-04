@@ -1,3 +1,6 @@
 [submodule "include/PUTM_DV_CAN_LIBRARY_RAII_2024"]
 	path = putm_vcl/include/PUTM_DV_CAN_LIBRARY_RAII_2024
 	url = git@github.com:PUT-Motorsport/PUTM_DV_CAN_LIBRARY_RAII_2024.git
+[submodule "putm_vcl/include/PUTM_EV_CAN_LIBRARY"]
+    path = putm_vcl/include/PUTM_EV_CAN_LIBRARY
+    url = git@github.com:PUT-Motorsport/PUTM_EV_CAN_LIBRARY.git
