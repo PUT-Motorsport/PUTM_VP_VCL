@@ -17,6 +17,9 @@ public:
     AmkNode();
 
 private:
+
+    rclcpp::QoS qos_;
+
     enum class StateMachine
     {
         UNDEFINED = -1,

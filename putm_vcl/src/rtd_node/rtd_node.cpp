@@ -4,24 +4,30 @@ using namespace putm_vcl_interfaces;
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
+
+
+
 RtdNode::RtdNode()
     : Node("rtd_node"),
+      qos_(rclcpp::QoS(1)
+              .best_effort()
+              .durability_volatile()),
       rtd_publisher(this->create_publisher<msg::Rtd>("rtd", 1)),
       state_machine_subscriber(this->create_subscription<msg::StateMachine>("state_machine", 1, std::bind(&RtdNode::state_machine_callback, this, _1))),
       frontbox_driver_input_subscription(this->create_subscription<msg::FrontboxDriverInput>("frontbox_driver_input", 1, std::bind(&RtdNode::frontbox_driver_input_callback, this, _1))),
       dashboard_subscription(this->create_subscription<msg::Dashboard>("dashboard", 1, std::bind(&RtdNode::dashboard_callback, this, _1))),
       rtd_timer(this->create_wall_timer(100ms, std::bind(&RtdNode::rtd_callback, this))),
       amk_front_left_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/front/left/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/front/left/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_front_left_actual_values1))),
       amk_front_right_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/front/right/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/front/right/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_front_right_actual_values1))),
       amk_rear_left_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/rear/left/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/rear/left/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_rear_left_actual_values1))),
       amk_rear_right_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/rear/right/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/rear/right/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_rear_right_actual_values1))){}
 
 void RtdNode::rtd_callback() {

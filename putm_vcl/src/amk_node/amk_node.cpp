@@ -10,24 +10,28 @@ using std::placeholders::_2;
 
 AmkNode::AmkNode()
     : Node("amk_node"),
+      qos_(rclcpp::QoS(1)
+              .best_effort()
+              .durability_volatile()),
+
       state(StateMachine::UNDEFINED),
       state_machine_publisher(this->create_publisher<msg::StateMachine>("state_machine", 1)),
-      amk_front_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/left/setpoints", 1)),
-      amk_front_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/right/setpoints", 1)),
-      amk_rear_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/left/setpoints", 1)),
-      amk_rear_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/right/setpoints", 1)),
+      amk_front_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/left/setpoints", qos_)),
+      amk_front_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/right/setpoints", qos_)),
+      amk_rear_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/left/setpoints", qos_)),
+      amk_rear_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/right/setpoints", qos_)),
       // clang-format off
       amk_front_left_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/front/left/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/front/left/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_front_left_actual_values1))),
       amk_front_right_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/front/right/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/front/right/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_front_right_actual_values1))),
       amk_rear_left_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/rear/left/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/rear/left/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_rear_left_actual_values1))),
       amk_rear_right_actual_values1_subscriber(
-          this->create_subscription<msg::AmkActualValues1>("amk/rear/right/actual_values1", 1, 
+          this->create_subscription<msg::AmkActualValues1>("amk/rear/right/actual_values1", qos_, 
                                                            amk_actual_values1_callback_factory(amk_rear_right_actual_values1))),
       // clang-format on
       rtd_subscriber(this->create_subscription<msg::Rtd>("rtd", 1, std::bind(&AmkNode::rtd_callback, this, _1))),

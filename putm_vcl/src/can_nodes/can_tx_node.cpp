@@ -9,28 +9,31 @@ CanTxNode::CanTxNode() : Node("can_tx_node") {
     // 1. Inicjalizacja CAN
     if (!can_tx_amk.Init(can_interface_amk)) RCLCPP_ERROR(this->get_logger(), "Init AMK TX failed");
     if (!can_tx_common.Init(can_interface_common)) RCLCPP_ERROR(this->get_logger(), "Init Common TX failed");
-
+    
+    rclcpp::QoS qos(1);
+    qos.best_effort();
+    qos.durability_volatile();
     // 2. Subskrypcje
     amk_front_right_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
-        "amk/front/right/setpoints", 1, std::bind(&CanTxNode::amk_fr_setpoints_callback, this, std::placeholders::_1));
+        "amk/front/right/setpoints", qos, std::bind(&CanTxNode::amk_fr_setpoints_callback, this, std::placeholders::_1));
     amk_rear_left_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
-        "amk/rear/left/setpoints", 1, std::bind(&CanTxNode::amk_rl_setpoints_callback, this, std::placeholders::_1));
+        "amk/rear/left/setpoints", qos, std::bind(&CanTxNode::amk_rl_setpoints_callback, this, std::placeholders::_1));
     amk_rear_right_setpoints_subscriber = this->create_subscription<msg::AmkSetpoints>(
-        "amk/rear/right/setpoints", 1, std::bind(&CanTxNode::amk_rr_setpoints_callback, this, std::placeholders::_1));
+        "amk/rear/right/setpoints", qos, std::bind(&CanTxNode::amk_rr_setpoints_callback, this, std::placeholders::_1));
 
     amk_front_right_actual_values1_subscriber = this->create_subscription<msg::AmkActualValues1>(
-        "amk/front/right/actual_values1", 1, std::bind(&CanTxNode::amk_fr_actual1_callback, this, std::placeholders::_1));
+        "amk/front/right/actual_values1", qos, std::bind(&CanTxNode::amk_fr_actual1_callback, this, std::placeholders::_1));
     amk_rear_left_actual_values1_subscriber = this->create_subscription<msg::AmkActualValues1>(
-        "amk/rear/left/actual_values1", 1, std::bind(&CanTxNode::amk_rl_actual1_callback, this, std::placeholders::_1));
+        "amk/rear/left/actual_values1", qos, std::bind(&CanTxNode::amk_rl_actual1_callback, this, std::placeholders::_1));
     amk_rear_right_actual_values1_subscriber = this->create_subscription<msg::AmkActualValues1>(
-        "amk/rear/right/actual_values1", 1, std::bind(&CanTxNode::amk_rr_actual1_callback, this, std::placeholders::_1));
+        "amk/rear/right/actual_values1", qos, std::bind(&CanTxNode::amk_rr_actual1_callback, this, std::placeholders::_1));
 
     amk_front_right_actual_values2_subscriber = this->create_subscription<msg::AmkActualValues2>(
-        "amk/front/right/actual_values2", 1, std::bind(&CanTxNode::amk_fr_actual2_callback, this, std::placeholders::_1));
+        "amk/front/right/actual_values2", qos, std::bind(&CanTxNode::amk_fr_actual2_callback, this, std::placeholders::_1));
     amk_rear_left_actual_values2_subscriber = this->create_subscription<msg::AmkActualValues2>(
-        "amk/rear/left/actual_values2", 1, std::bind(&CanTxNode::amk_rl_actual2_callback, this, std::placeholders::_1));
+        "amk/rear/left/actual_values2", qos, std::bind(&CanTxNode::amk_rl_actual2_callback, this, std::placeholders::_1));
     amk_rear_right_actual_values2_subscriber = this->create_subscription<msg::AmkActualValues2>(
-        "amk/rear/right/actual_values2", 1, std::bind(&CanTxNode::amk_rr_actual2_callback, this, std::placeholders::_1));
+        "amk/rear/right/actual_values2", qos, std::bind(&CanTxNode::amk_rr_actual2_callback, this, std::placeholders::_1));
 
     rtd_subscriber = this->create_subscription<msg::Rtd>("rtd", 1, std::bind(&CanTxNode::rtd_callback, this, std::placeholders::_1));
     lap_timer_subscriber = this->create_subscription<msg::LapTimer>("lap_timer", 1, std::bind(&CanTxNode::lap_timer_callback, this, std::placeholders::_1));

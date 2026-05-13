@@ -12,6 +12,9 @@ class RtdNode : public rclcpp::Node {
   RtdNode();
 
  private:
+
+  rclcpp::QoS qos_;
+
   putm_vcl_interfaces::msg::Rtd rtd;
   putm_vcl_interfaces::msg::StateMachine state_machine;
   putm_vcl_interfaces::msg::FrontboxDriverInput frontbox_driver_input;

@@ -6,6 +6,10 @@ using namespace putm_vcl_interfaces;
 
 CanRxNode::CanRxNode() : Node("can_rx_node") {
     // Inicjalizacja publisherów
+    rclcpp::QoS qos(1);
+    qos.best_effort();
+    qos.durability_volatile();
+
     frontbox_driver_input_publisher = this->create_publisher<msg::FrontboxDriverInput>("frontbox_driver_input", 1);
     frontbox_data_publisher = this->create_publisher<msg::FrontboxData>("frontbox_data", 1);
     bms_hv_main_publisher = this->create_publisher<msg::BmsHvMain>("bms_hv_main", 1);
@@ -14,14 +18,14 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
     pdu_channel_publisher = this->create_publisher<msg::PduChannel>("pdu_channel", 1);
     dashboard_publisher = this->create_publisher<msg::Dashboard>("dashboard", 1);
 
-    amk_front_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", 1);
-    amk_front_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/left/actual_values2", 1);
-    amk_front_right_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/right/actual_values1", 1);
-    amk_front_right_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/right/actual_values2", 1);
-    amk_rear_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/rear/left/actual_values1", 1);
-    amk_rear_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/rear/left/actual_values2", 1);
-    amk_rear_right_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/rear/right/actual_values1", 1);
-    amk_rear_right_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/rear/right/actual_values2", 1);
+    amk_front_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", qos);
+    amk_front_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/left/actual_values2", qos);
+    amk_front_right_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/right/actual_values1", qos);
+    amk_front_right_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/right/actual_values2", qos);
+    amk_rear_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/rear/left/actual_values1", qos);
+    amk_rear_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/rear/left/actual_values2", qos);
+    amk_rear_right_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/rear/right/actual_values1", qos);
+    amk_rear_right_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/rear/right/actual_values2", qos);
 
     // 1. Inicjalizacja magistral
     if (!can_rx_amk.Init(can_interface_amk)) {
