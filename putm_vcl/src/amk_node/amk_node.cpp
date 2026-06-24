@@ -35,7 +35,7 @@ AmkNode::AmkNode()
                                                            amk_actual_values1_callback_factory(amk_rear_right_actual_values1))),
       // clang-format on
       rtd_subscriber(this->create_subscription<msg::Rtd>("rtd", 1, std::bind(&AmkNode::rtd_callback, this, _1))),
-      setpoints_subscriber(this->create_subscription<msg::Setpoints>("setpoints", 1, std::bind(&AmkNode::setpoints_callback, this, _1))),
+      setpoints_subscriber(this->create_subscription<msg::Setpoints>("setpoints", qos_, std::bind(&AmkNode::setpoints_callback, this, _1))),
 
       setpoints_watchdog(this->create_wall_timer(500ms, std::bind(&AmkNode::setpoints_watchdog_callback, this))),
       amk_state_machine_watchdog(this->create_wall_timer(5000ms, std::bind(&AmkNode::amk_state_machine_watchdog_callback, this))),
