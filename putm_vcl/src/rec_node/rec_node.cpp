@@ -49,7 +49,42 @@ void RecNode::start_recording() {
     }
 
     if (pid_ == 0) {
-        execlp("ros2", "ros2", "bag", "record", "-a", "-s", "mcap", "-o", filename.c_str(), nullptr);
+        //execlp("ros2", "ros2", "bag", "record", "-a", "-s", "mcap", "-o", filename.c_str(), nullptr);
+        execlp("ros2", "ros2", "bag", "record", 
+               "-s", "mcap", 
+               "-o", filename.c_str(), 
+               "/imu/acceleration",
+               "/imu/angular_velocity",
+               "/parameter_events",
+               "/putm_vcl/amk/front/left/actual_values1",
+               "/putm_vcl/amk/front/left/actual_values2",
+               "/putm_vcl/amk/front/left/setpoints",
+               "/putm_vcl/amk/front/right/actual_values1",
+               "/putm_vcl/amk/front/right/actual_values2",
+               "/putm_vcl/amk/front/right/setpoints",
+               "/putm_vcl/amk/rear/left/actual_values1",
+               "/putm_vcl/amk/rear/left/actual_values2",
+               "/putm_vcl/amk/rear/left/setpoints",
+               "/putm_vcl/amk/rear/right/actual_values1",
+               "/putm_vcl/amk/rear/right/actual_values2",
+               "/putm_vcl/amk/rear/right/setpoints",
+               "/putm_vcl/bms_hv_main",
+               "/putm_vcl/bms_lv_main",
+               "/putm_vcl/dashboard",
+               "/putm_vcl/frontbox_data",
+               "/putm_vcl/frontbox_driver_input",
+               "/putm_vcl/lap_timer",
+               "/putm_vcl/pdu_channel",
+               "/putm_vcl/pdu_data",
+               "/putm_vcl/rtd",
+               "/putm_vcl/setpoints",
+               "/putm_vcl/state_machine",
+               "/rosout",
+               "/vectornav/gnss",
+               "/vectornav/raw/imu",
+               "/vectornav/velocity_body",
+               "/yaw_ref",
+               nullptr);
         RCLCPP_ERROR(this->get_logger(), "Failed to launch `ros2 bag record`!");
         _exit(1);
     } else {
