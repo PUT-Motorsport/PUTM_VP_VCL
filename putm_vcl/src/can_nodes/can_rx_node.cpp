@@ -13,6 +13,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
     pdu_data_publisher = this->create_publisher<msg::PduData>("pdu_data", 1);
     pdu_channel_publisher = this->create_publisher<msg::PduChannel>("pdu_channel", 1);
     dashboard_publisher = this->create_publisher<msg::Dashboard>("dashboard", 1);
+    current_sensors_data_publisher = this->create_publisher<msg::CurrentSensorData>("current_sensors_data", 1);
 
     amk_front_left_actual_values1_publisher = this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", 1);
     amk_front_left_actual_values2_publisher = this->create_publisher<msg::AmkActualValues2>("amk/front/left/actual_values2", 1);
@@ -229,6 +230,16 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             msg.temp_inverter = f.amk_temp_inverter;
             msg.error_info = f.amk_diagnosis_no;
             amk_rear_right_actual_values2_publisher->publish(msg);
+        });
+    can_rx_amk.RegisterCallback<PUTM_CAN_M_current_sensors_data_t>(
+        PUTM_CAN_M_CURRENT_SENSORS_DATA_FRAME_ID,
+        [this](const PUTM_CAN_M_current_sensors_data_t& frame) {
+            msg::CurrentSensorData ros_msg;
+            ros_msg.fl_inv_current = frame.fl_inv_current;
+            ros_msg.fr_inv_current = frame.fr_inv_current;
+            ros_msg.rl_inv_current = frame.rl_inv_current;
+            ros_msg.rr_inv_current = frame.rr_inv_current;
+            current_sensors_data_publisher->publish(ros_msg);
         });
 }
 

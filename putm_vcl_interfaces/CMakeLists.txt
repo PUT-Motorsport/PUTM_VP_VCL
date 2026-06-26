@@ -41,6 +41,7 @@ rosidl_generate_interfaces(
   "msg/BmsHvMain/BmsHvMain.msg"
   "msg/BmsLvMain/BmsLvMain.msg"
   "msg/VpData/YawRef.msg"
+  "msg/CurrentSensor/CurrentSensorData.msg"
   "msg/LapTimer/LapTimer.msg"
   "msg/StateMachine/StateMachine.msg"
   "msg/Pdu/PduData.msg"
