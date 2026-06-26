@@ -41,7 +41,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             ros_msg.pedal_position = frame.pedal_position;
             ros_msg.brake_pressure_front = frame.brake_pressure_front;
             ros_msg.brake_pressure_rear = frame.brake_pressure_rear;
-            ros_msg.steering_wheel_position = frame.steering_wheel_position;
+            // TODO: Delete steering wheel position from the message
             frontbox_driver_input_publisher->publish(ros_msg);
         });
 
@@ -49,8 +49,8 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
         PUTM_CAN_M_FRONT_DATA_FRAME_ID,
         [this](const PUTM_CAN_M_front_data_t& frame) {
             msg::FrontboxData ros_msg;
-            ros_msg.front_left_suspension = frame.front_left_suspension;
-            ros_msg.front_right_suspension = frame.front_right_suspension;
+            // TODO: delete front left suspension from the message
+            // TODO: delete front right suspension from the message
             ros_msg.sense_left_kill = frame.sense_left_kill;
             ros_msg.sense_right_kill = frame.sense_right_kill;
             ros_msg.sense_driver_kill = frame.sense_driver_kill;
@@ -198,7 +198,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             msg::AmkActualValues2 msg;
             msg.temp_motor = f.amk_temp_motor;
             msg.temp_inverter = f.amk_temp_inverter;
-            msg.error_info = f.amk_diagnosis_no;
+            msg.error_info = f.amk_error_info;
             amk_front_left_actual_values2_publisher->publish(msg);
         });
 
@@ -208,7 +208,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             msg::AmkActualValues2 msg;
             msg.temp_motor = f.amk_temp_motor;
             msg.temp_inverter = f.amk_temp_inverter;
-            msg.error_info = f.amk_diagnosis_no;
+            msg.error_info = f.amk_error_info;
             amk_front_right_actual_values2_publisher->publish(msg);
         });
 
@@ -218,7 +218,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             msg::AmkActualValues2 msg;
             msg.temp_motor = f.amk_temp_motor;
             msg.temp_inverter = f.amk_temp_inverter;
-            msg.error_info = f.amk_diagnosis_no;
+            msg.error_info = f.amk_error_info;
             amk_rear_left_actual_values2_publisher->publish(msg);
         });
 
@@ -228,7 +228,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             msg::AmkActualValues2 msg;
             msg.temp_motor = f.amk_temp_motor;
             msg.temp_inverter = f.amk_temp_inverter;
-            msg.error_info = f.amk_diagnosis_no;
+            msg.error_info = f.amk_error_info;
             amk_rear_right_actual_values2_publisher->publish(msg);
         });
     can_rx_amk.RegisterCallback<PUTM_CAN_M_current_sensors_data_t>(
