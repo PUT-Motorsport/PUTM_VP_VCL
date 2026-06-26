@@ -44,7 +44,8 @@ rosidl_generate_interfaces(
   "msg/CurrentSensor/CurrentSensorData.msg"
   "msg/LapTimer/LapTimer.msg"
   "msg/StateMachine/StateMachine.msg"
-  "msg/Pdu/PduData.msg"
+  "msg/Pdu/PduData1.msg"
+  "msg/Pdu/PduData2.msg"
   "msg/Pdu/PduChannel.msg")
 
 if(BUILD_TESTING)

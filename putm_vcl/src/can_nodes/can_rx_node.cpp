@@ -10,7 +10,8 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
     frontbox_data_publisher = this->create_publisher<msg::FrontboxData>("frontbox_data", 1);
     bms_hv_main_publisher = this->create_publisher<msg::BmsHvMain>("bms_hv_main", 1);
     bms_lv_main_publisher = this->create_publisher<msg::BmsLvMain>("bms_lv_main", 1);
-    pdu_data_publisher = this->create_publisher<msg::PduData>("pdu_data", 1);
+    pdu_data_1_publisher = this->create_publisher<msg::PduData1>("pdu_data_1", 1);
+    pdu_data_2_publisher = this->create_publisher<msg::PduData2>("pdu_data_2", 1);
     pdu_channel_publisher = this->create_publisher<msg::PduChannel>("pdu_channel", 1);
     dashboard_publisher = this->create_publisher<msg::Dashboard>("dashboard", 1);
     current_sensors_data_publisher = this->create_publisher<msg::CurrentSensorData>("current_sensors_data", 1);
@@ -65,18 +66,26 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             frontbox_data_publisher->publish(ros_msg);
         });
 
-    can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_data_t>(
-        PUTM_CAN_M_PDU_DATA_FRAME_ID,
-        [this](const PUTM_CAN_M_pdu_data_t& frame) {
-            msg::PduData ros_msg;
+    can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_data_1_t>(
+        PUTM_CAN_M_PDU_DATA_1_FRAME_ID,
+        [this](const PUTM_CAN_M_pdu_data_1_t& frame) {
+            msg::PduData1 ros_msg;
             ros_msg.pc_current = frame.pc_current;
             ros_msg.pump_current = frame.pump_current;
             ros_msg.fan_current = frame.fan_current;
             ros_msg.inverter_current = frame.inverter_current;
+            pdu_data_1_publisher->publish(ros_msg);
+        });
+
+    can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_data_2_t>(
+        PUTM_CAN_M_PDU_DATA_2_FRAME_ID,
+        [this](const PUTM_CAN_M_pdu_data_2_t& frame) {
+            msg::PduData2 ros_msg;
             ros_msg.fbox_current = frame.fbox_current;
             ros_msg.sdc_current = frame.sdc_current;
             ros_msg.total_current = frame.total_current;
-            pdu_data_publisher->publish(ros_msg);
+            ros_msg.reserved = frame.reserved;
+            pdu_data_2_publisher->publish(ros_msg);
         });
 
     can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_channnel_t>(

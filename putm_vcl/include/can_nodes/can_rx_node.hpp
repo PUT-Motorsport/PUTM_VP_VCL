@@ -11,7 +11,8 @@
 #include "putm_vcl_interfaces/msg/dashboard.hpp"
 #include "putm_vcl_interfaces/msg/frontbox_data.hpp"
 #include "putm_vcl_interfaces/msg/frontbox_driver_input.hpp"
-#include "putm_vcl_interfaces/msg/pdu_data.hpp"
+#include "putm_vcl_interfaces/msg/pdu_data1.hpp"
+#include "putm_vcl_interfaces/msg/pdu_data2.hpp"
 #include "putm_vcl_interfaces/msg/pdu_channel.hpp"
 #include "putm_vcl_interfaces/msg/bms_hv_main.hpp"
 #include "putm_vcl_interfaces/msg/bms_lv_main.hpp"
@@ -31,7 +32,8 @@ private:
   rclcpp::Publisher<putm_vcl_interfaces::msg::FrontboxData>::SharedPtr frontbox_data_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::BmsHvMain>::SharedPtr bms_hv_main_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::BmsLvMain>::SharedPtr bms_lv_main_publisher;
-  rclcpp::Publisher<putm_vcl_interfaces::msg::PduData>::SharedPtr pdu_data_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::PduData1>::SharedPtr pdu_data_1_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::PduData2>::SharedPtr pdu_data_2_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::PduChannel>::SharedPtr pdu_channel_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::Dashboard>::SharedPtr dashboard_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::CurrentSensorData>::SharedPtr current_sensors_data_publisher;
