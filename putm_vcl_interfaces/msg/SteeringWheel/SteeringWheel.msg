@@ -1,0 +1,4 @@
+int16 steering_wheel_position
+uint16 measurement2
+uint16 measurement3
+uint16 measurement4

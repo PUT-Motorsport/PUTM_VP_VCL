@@ -8,6 +8,7 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
     // Inicjalizacja publisherów
     frontbox_driver_input_publisher = this->create_publisher<msg::FrontboxDriverInput>("frontbox_driver_input", 1);
     frontbox_data_publisher = this->create_publisher<msg::FrontboxData>("frontbox_data", 1);
+    steering_wheel_publisher = this->create_publisher<msg::SteeringWheel>("steering_wheel", 1);
     bms_hv_main_publisher = this->create_publisher<msg::BmsHvMain>("bms_hv_main", 1);
     bms_lv_main_publisher = this->create_publisher<msg::BmsLvMain>("bms_lv_main", 1);
     pdu_data_1_publisher = this->create_publisher<msg::PduData1>("pdu_data_1", 1);
@@ -64,6 +65,16 @@ CanRxNode::CanRxNode() : Node("can_rx_node") {
             ros_msg.apps = frame.apps;
             ros_msg.apps_implausibility = frame.apps_implausibility;
             frontbox_data_publisher->publish(ros_msg);
+        });
+    can_rx_common.RegisterCallback<PUTM_CAN_M_steering_wheel_t>(
+        PUTM_CAN_M_STEERING_WHEEL_FRAME_ID,
+        [this](const PUTM_CAN_M_steering_wheel_t& frame) {
+            msg::SteeringWheel ros_msg;
+            ros_msg.steering_wheel_position = frame.steering_wheel_position;
+            ros_msg.measurement2 = frame.measurement2;
+            ros_msg.measurement3 = frame.measurement3;
+            ros_msg.measurement4 = frame.measurement4;
+            steering_wheel_publisher->publish(ros_msg);
         });
 
     can_rx_common.RegisterCallback<PUTM_CAN_M_pdu_data_1_t>(

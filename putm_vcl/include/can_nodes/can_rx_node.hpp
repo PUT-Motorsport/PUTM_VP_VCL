@@ -17,6 +17,7 @@
 #include "putm_vcl_interfaces/msg/bms_hv_main.hpp"
 #include "putm_vcl_interfaces/msg/bms_lv_main.hpp"
 #include "putm_vcl_interfaces/msg/current_sensor_data.hpp"
+#include "putm_vcl_interfaces/msg/steering_wheel.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 
@@ -37,6 +38,7 @@ private:
   rclcpp::Publisher<putm_vcl_interfaces::msg::PduChannel>::SharedPtr pdu_channel_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::Dashboard>::SharedPtr dashboard_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::CurrentSensorData>::SharedPtr current_sensors_data_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::SteeringWheel>::SharedPtr steering_wheel_publisher;
 
   rclcpp::Publisher<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_left_actual_values1_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::AmkActualValues2>::SharedPtr amk_front_left_actual_values2_publisher;

@@ -17,6 +17,7 @@ rosidl_generate_interfaces(
   "msg/Amk/AmkActualValues2.msg"
   "msg/Frontbox/FrontboxDriverInput.msg"
   "msg/Frontbox/FrontboxData.msg"
+  "msg/SteeringWheel/SteeringWheel.msg"
   "msg/Setpoints/Setpoints.msg"
   "msg/Setpoints/Setpoint.msg"
   "msg/Dashboard.msg"
