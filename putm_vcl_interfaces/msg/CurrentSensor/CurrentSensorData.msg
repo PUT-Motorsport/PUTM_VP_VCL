@@ -1,0 +1,4 @@
+uint16 fl_inv_current
+uint16 fr_inv_current
+uint16 rl_inv_current
+uint16 rr_inv_current
