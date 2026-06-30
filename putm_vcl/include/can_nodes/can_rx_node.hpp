@@ -8,6 +8,8 @@
 #include "putm_vcl_interfaces/msg/frontbox_driver_input.hpp"
 #include "putm_vcl_interfaces/msg/pdu_data.hpp"
 #include "putm_vcl_interfaces/msg/pdu_channel.hpp"
+#include "putm_vcl_interfaces/msg/current_sensor.hpp"
+#include "putm_vcl_interfaces/msg/steering_wheel.hpp"
 
 #include "putm_vcl_interfaces/msg/xsens_acceleration.hpp"
 #include "putm_vcl_interfaces/msg/xsens_acceleration_hr.hpp"
@@ -49,6 +51,8 @@ class CanRxNode : public rclcpp::Node {
 
   rclcpp::Publisher<putm_vcl_interfaces::msg::PduData>::SharedPtr pdu_data_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::PduChannel>::SharedPtr pdu_channel_publisher;
+    rclcpp::Publisher<putm_vcl_interfaces::msg::CurrentSensor>::SharedPtr current_sensor_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::SteeringWheel>::SharedPtr steering_wheel_publisher;
 
 
   rclcpp::Publisher<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_left_actual_values1_publisher;
@@ -78,8 +82,14 @@ class CanRxNode : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr can_rx_amk_timer;
   rclcpp::TimerBase::SharedPtr can_rx_common_timer;
 
+  std::thread rx_thread_amk;
+  std::thread rx_thread_common;
+
   void can_rx_amk_callback();
   void can_rx_common_callback();
+
+  void process_common_frame(const can_frame& frame);
+  void process_amk_frame(const can_frame& frame);
 
   template <typename T>
   putm_vcl_interfaces::msg::AmkActualValues1 create_amk_actual_values1_msg(const T& can_amk);

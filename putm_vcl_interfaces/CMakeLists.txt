@@ -44,7 +44,9 @@ rosidl_generate_interfaces(
   "msg/LapTimer/LapTimer.msg"
   "msg/StateMachine/StateMachine.msg"
   "msg/Pdu/PduData.msg"
-  "msg/Pdu/PduChannel.msg")
+  "msg/Pdu/PduChannel.msg"
+  "msg/CurrentSensor/CurrentSensor.msg"
+  "msg/SteeringWheel/SteeringWheel.msg")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
