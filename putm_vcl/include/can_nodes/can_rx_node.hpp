@@ -9,6 +9,7 @@
 #include "putm_vcl_interfaces/msg/pdu_data.hpp"
 #include "putm_vcl_interfaces/msg/pdu_channel.hpp"
 #include "putm_vcl_interfaces/msg/current_sensor.hpp"
+#include "putm_vcl_interfaces/msg/ivt_current.hpp"
 #include "putm_vcl_interfaces/msg/steering_wheel.hpp"
 
 #include "putm_vcl_interfaces/msg/xsens_acceleration.hpp"
@@ -51,7 +52,8 @@ class CanRxNode : public rclcpp::Node {
 
   rclcpp::Publisher<putm_vcl_interfaces::msg::PduData>::SharedPtr pdu_data_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::PduChannel>::SharedPtr pdu_channel_publisher;
-    rclcpp::Publisher<putm_vcl_interfaces::msg::CurrentSensor>::SharedPtr current_sensor_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::CurrentSensor>::SharedPtr current_sensor_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::IvtCurrent>::SharedPtr ivt_current_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::SteeringWheel>::SharedPtr steering_wheel_publisher;
 
 

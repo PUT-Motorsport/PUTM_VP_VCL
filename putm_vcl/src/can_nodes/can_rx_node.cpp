@@ -20,6 +20,7 @@ CanRxNode::CanRxNode()
       pdu_data_publisher(this->create_publisher<msg::PduData>("pdu_data",1)),
       pdu_channel_publisher(this->create_publisher<msg::PduChannel>("pdu_channel",1)),
       current_sensor_publisher(this->create_publisher<msg::CurrentSensor>("current_sensor",1)),
+      ivt_current_publisher(this->create_publisher<msg::IvtCurrent>("ivt_current", 1)),
       steering_wheel_publisher(this->create_publisher<msg::SteeringWheel>("steering_wheel",1)),
 
       amk_front_left_actual_values1_publisher(this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", 1)),
@@ -133,6 +134,13 @@ void CanRxNode::process_common_frame(const can_frame& frame) {
         current_sensor.rl_inv_current = can_current_sensor.rl_inv_current;
         current_sensor.rr_inv_current = can_current_sensor.rr_inv_current;
         current_sensor_publisher->publish(current_sensor);
+        break;
+      }
+      case can_id<IVT_Msg_Result_I>: {
+        auto can_ivt = convert<IVT_Msg_Result_I>(frame);
+        msg::IvtCurrent ivt_current;
+        ivt_current.current = decode_ivt_result_i(can_ivt);
+        ivt_current_publisher->publish(ivt_current);
         break;
       }
       case can_id<SteeringWheel>: {

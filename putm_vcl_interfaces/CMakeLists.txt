@@ -46,6 +46,7 @@ rosidl_generate_interfaces(
   "msg/Pdu/PduData.msg"
   "msg/Pdu/PduChannel.msg"
   "msg/CurrentSensor/CurrentSensor.msg"
+  "msg/IvtCurrent/IvtCurrent.msg"
   "msg/SteeringWheel/SteeringWheel.msg")
 
 if(BUILD_TESTING)
