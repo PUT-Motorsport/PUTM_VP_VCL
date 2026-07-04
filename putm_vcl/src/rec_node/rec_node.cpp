@@ -74,6 +74,7 @@ void RecNode::start_recording() {
                 "/putm_vcl/dashboard",
                 "/putm_vcl/frontbox_data",
                 "/putm_vcl/frontbox_driver_input",
+                "/putm_vcl/ivt_current",
                 "/putm_vcl/lap_timer",
                 "/putm_vcl/pdu_channel",
                 "/putm_vcl/pdu_data",
