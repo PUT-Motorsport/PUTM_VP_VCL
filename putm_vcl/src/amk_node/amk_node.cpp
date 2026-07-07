@@ -1,5 +1,4 @@
 #include "amk_node/amk_node.hpp"
-
 #include "putm_vcl/putm_vcl.hpp"
 
 using namespace putm_vcl;
@@ -8,14 +7,27 @@ using namespace std::chrono_literals;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+// --- STRUKTURA DO ŚLEDZENIA STANU POJEDYNCZEGO SILNIKA ---
+struct MotorState {
+  bool is_cut_off = false;
+  bool is_resetting = false;
+  rclcpp::Time reset_start_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+};
+
+static MotorState fl_state;
+static MotorState fr_state;
+static MotorState rl_state;
+static MotorState rr_state;
+// ---------------------------------------------------------
+
 AmkNode::AmkNode()
     : Node("amk_node"),
       state(StateMachine::UNDEFINED),
-      state_machine_publisher(this->create_publisher<msg::StateMachine>("state_machine", 1)),
       amk_front_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/left/setpoints", 1)),
       amk_front_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/right/setpoints", 1)),
       amk_rear_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/left/setpoints", 1)),
       amk_rear_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/right/setpoints", 1)),
+      state_machine_publisher(this->create_publisher<msg::StateMachine>("state_machine", 1)),
       // clang-format off
       amk_front_left_actual_values1_subscriber(
           this->create_subscription<msg::AmkActualValues1>("amk/front/left/actual_values1", 1, 
@@ -64,6 +76,7 @@ void AmkNode::setpoints_callback(const msg::Setpoints::SharedPtr msg)
   setpoints = *msg;
   setpoints_watchdog->reset();
 }
+
 std::function<void(const msg::AmkActualValues1::SharedPtr msg)> AmkNode::amk_actual_values1_callback_factory(msg::AmkActualValues1 &target)
 {
   return [this, &target](const putm_vcl_interfaces::msg::AmkActualValues1::SharedPtr msg)
@@ -79,6 +92,7 @@ void AmkNode::setpoints_watchdog_callback()
   setpoints.rear_right.torque = 0;
   setpoints_watchdog->cancel();
 }
+
 void AmkNode::amk_state_machine_watchdog_callback()
 {
   RCLCPP_WARN(this->get_logger(), "State machine watchdog triggered");
@@ -96,6 +110,8 @@ void AmkNode::amk_setpoints_callback()
   amk_rear_right_setpoints_publisher->publish(amk_rear_right_setpoints);
 }
 
+// Zmodyfikowane funkcje sprawdzające, które ignorują odcięte silniki 
+// (oraz te w trakcie resetu, by zapobiec niechcianym wyjściom do SWITCH_OFF)
 bool AmkNode::check_rtd()
 {
   return rtd.state == true;
@@ -103,49 +119,61 @@ bool AmkNode::check_rtd()
 
 bool AmkNode::check_dc_on()
 {
-  return (amk_front_left_actual_values1.amk_status.quit_dc_on && amk_front_right_actual_values1.amk_status.quit_dc_on && amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on) == true;
-  // return (amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on) == true;
-
+  auto check = [](const auto& actual, const MotorState& state) {
+    return state.is_cut_off || actual.amk_status.quit_dc_on;
+  };
+  return (check(amk_front_left_actual_values1, fl_state) && 
+          check(amk_front_right_actual_values1, fr_state) && 
+          check(amk_rear_left_actual_values1, rl_state) && 
+          check(amk_rear_right_actual_values1, rr_state)) == true;
 }
 
 bool AmkNode::check_inv_errors()
 {
-  return (amk_front_left_actual_values1.amk_status.error || amk_front_right_actual_values1.amk_status.error || amk_rear_left_actual_values1.amk_status.error ||
-          amk_rear_right_actual_values1.amk_status.error) == true;
-  // return (amk_rear_left_actual_values1.amk_status.error ||
-  //         amk_rear_right_actual_values1.amk_status.error) == true;
+  auto check = [](const auto& actual, const MotorState& state) {
+    return !state.is_cut_off && actual.amk_status.error;
+  };
+  return (check(amk_front_left_actual_values1, fl_state) || 
+          check(amk_front_right_actual_values1, fr_state) || 
+          check(amk_rear_left_actual_values1, rl_state) || 
+          check(amk_rear_right_actual_values1, rr_state)) == true;
 }
 
 bool AmkNode::check_quit_inverter_on()
 {
-  return (!amk_front_left_actual_values1.amk_status.quit_inverter_on || !amk_front_right_actual_values1.amk_status.quit_inverter_on ||
-          !amk_rear_left_actual_values1.amk_status.quit_inverter_on || !amk_rear_right_actual_values1.amk_status.quit_inverter_on) == false;
-  // return (!amk_rear_left_actual_values1.amk_status.quit_inverter_on || !amk_rear_right_actual_values1.amk_status.quit_inverter_on) == false;
+  auto check = [](const auto& actual, const MotorState& state) {
+    return state.is_cut_off || actual.amk_status.quit_inverter_on;
+  };
+  return (check(amk_front_left_actual_values1, fl_state) && 
+          check(amk_front_right_actual_values1, fr_state) && 
+          check(amk_rear_left_actual_values1, rl_state) && 
+          check(amk_rear_right_actual_values1, rr_state)) == true;
 }
 
 bool AmkNode::system_ready()
 {
-  return ( amk_rear_left_actual_values1.amk_status.system_ready && amk_rear_right_actual_values1.amk_status.system_ready &&
-           amk_front_left_actual_values1.amk_status.system_ready && amk_front_right_actual_values1.amk_status.system_ready) == true;
+  auto check = [](const auto& actual, const MotorState& state) {
+    return state.is_cut_off || actual.amk_status.system_ready;
+  };
+  return (check(amk_front_left_actual_values1, fl_state) && 
+          check(amk_front_right_actual_values1, fr_state) && 
+          check(amk_rear_left_actual_values1, rl_state) && 
+          check(amk_rear_right_actual_values1, rr_state)) == true;
 }
+
 bool AmkNode::check_inv_on()
 {
-  return (amk_front_left_actual_values1.amk_status.quit_inverter_on && amk_front_right_actual_values1.amk_status.quit_inverter_on &&
-          amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_inverter_on &&
-         amk_front_left_actual_values1.amk_status.quit_dc_on && amk_front_right_actual_values1.amk_status.quit_dc_on &&
-         amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on&&
-         amk_front_left_actual_values1.amk_status.inverter_on && amk_front_right_actual_values1.amk_status.inverter_on &&
-          amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.inverter_on &&
-         amk_front_left_actual_values1.amk_status.dc_on && amk_front_right_actual_values1.amk_status.dc_on &&
-         amk_rear_left_actual_values1.amk_status.dc_on && amk_rear_right_actual_values1.amk_status.dc_on) == true;
-  // return (
-  //         amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_inverter_on &&
-          
-  //         amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on&&
-          
-  //         amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.inverter_on &&
-          
-  //         amk_rear_left_actual_values1.amk_status.dc_on && amk_rear_right_actual_values1.amk_status.dc_on) == true;
+  auto check = [](const auto& actual, const MotorState& state) {
+    if (state.is_cut_off || state.is_resetting) return true; // Ignorujemy przy sprawdzaniu awarii
+    return actual.amk_status.quit_inverter_on && 
+           actual.amk_status.quit_dc_on &&
+           actual.amk_status.inverter_on && 
+           actual.amk_status.dc_on;
+  };
+  return (check(amk_front_left_actual_values1, fl_state) && 
+          check(amk_front_right_actual_values1, fr_state) && 
+          check(amk_rear_left_actual_values1, rl_state) && 
+          check(amk_rear_right_actual_values1, rr_state)) == true;
 }
 
 bool AmkNode::all_inv_on()
@@ -158,19 +186,10 @@ bool AmkNode::all_inv_on()
           amk_rear_left_actual_values1.amk_status.inverter_on || amk_rear_right_actual_values1.amk_status.inverter_on ||
           amk_front_left_actual_values1.amk_status.dc_on || amk_front_right_actual_values1.amk_status.dc_on || 
           amk_rear_left_actual_values1.amk_status.dc_on || amk_rear_right_actual_values1.amk_status.dc_on || rtd.state) == false;
-  // return (
-  //         amk_rear_left_actual_values1.amk_status.quit_inverter_on || amk_rear_right_actual_values1.amk_status.quit_inverter_on ||
-          
-  //         amk_rear_left_actual_values1.amk_status.quit_dc_on || amk_rear_right_actual_values1.amk_status.quit_dc_on||
-          
-  //         amk_rear_left_actual_values1.amk_status.inverter_on || amk_rear_right_actual_values1.amk_status.inverter_on ||
-          
-  //         amk_rear_left_actual_values1.amk_status.dc_on || amk_rear_right_actual_values1.amk_status.dc_on || rtd.state) == false;
 }
 
 void AmkNode::amk_state_machine_callback()
 {
-
   for (const auto &t : transitions)
   {
     if (t.from == state && t.condition())
@@ -184,6 +203,7 @@ void AmkNode::amk_state_machine_callback()
 
   on_update(state);
 }
+
 void AmkNode::on_enter(StateMachine state)
 {
   switch (state)
@@ -222,7 +242,6 @@ void AmkNode::on_enter(StateMachine state)
 
   case StateMachine::ERROR_RESET:
     RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "[ERROR_RESET] Entered state");
-    //FIXME: to chyba można zostawić?
     amk_front_left_setpoints.amk_control.error_reset = true;
     amk_front_right_setpoints.amk_control.error_reset = true;
     amk_rear_left_setpoints.amk_control.error_reset = true;
@@ -234,6 +253,7 @@ void AmkNode::on_enter(StateMachine state)
     break;
   }
 }
+
 void AmkNode::on_update(StateMachine state)
 {
   switch (state)
@@ -292,30 +312,78 @@ void AmkNode::on_update(StateMachine state)
     rclcpp::sleep_for(10ms);
     break;
 
-  case StateMachine::TORQUE_CONTROL:
+  case StateMachine::TORQUE_CONTROL: {
     amk_front_left_setpoints.torque_positive_limit = 2000;
     amk_front_left_setpoints.torque_negative_limit = -2000;
-    amk_front_left_setpoints.target_torque = setpoints.front_left.torque;
-
     amk_front_right_setpoints.torque_positive_limit = 2000;
     amk_front_right_setpoints.torque_negative_limit = -2000;
-    amk_front_right_setpoints.target_torque = setpoints.front_right.torque;
-
     amk_rear_left_setpoints.torque_positive_limit = 2000;
     amk_rear_left_setpoints.torque_negative_limit = -2000;
-    amk_rear_left_setpoints.target_torque = setpoints.rear_left.torque;
-
     amk_rear_right_setpoints.torque_positive_limit = 2000;
     amk_rear_right_setpoints.torque_negative_limit = -2000;
-    amk_rear_right_setpoints.target_torque = -setpoints.rear_right.torque;
-    // if (amk_rear_left_actual_values1.actual_velocity > 20000 || amk_rear_right_actual_values1.actual_velocity > 20000){
-    if (amk_front_left_actual_values1.actual_velocity > 20000 || amk_front_right_actual_values1.actual_velocity > 20000 || amk_rear_left_actual_values1.actual_velocity > 20000 || amk_rear_right_actual_values1.actual_velocity > 20000){
-      amk_front_left_setpoints.target_torque = 0;
-      amk_front_right_setpoints.target_torque = 0;
-      amk_rear_left_setpoints.target_torque = 0;
-      amk_rear_right_setpoints.target_torque = 0;
-    }
+
+    bool overspeed = (amk_front_left_actual_values1.actual_velocity > 20000 || 
+                      amk_front_right_actual_values1.actual_velocity > 20000 || 
+                      amk_rear_left_actual_values1.actual_velocity > 20000 || 
+                      amk_rear_right_actual_values1.actual_velocity > 20000);
+
+    int16_t fl_tq = overspeed ? 0 : setpoints.front_left.torque;
+    int16_t fr_tq = overspeed ? 0 : setpoints.front_right.torque;
+    int16_t rl_tq = overspeed ? 0 : setpoints.rear_left.torque;
+    int16_t rr_tq = overspeed ? 0 : -setpoints.rear_right.torque;
+
+    // Funkcja zarządzająca silnikami z wbudowanym systemem ratunkowym (reset/odcięcie)
+    auto handle_motor = [this](const auto& actual, auto& setpts, MotorState& state, int16_t target_tq) {
+      if (state.is_cut_off) {
+        setpts.amk_control.inverter_on = false;
+        setpts.amk_control.enable = false;
+        setpts.amk_control.dc_on = false;
+        setpts.amk_control.error_reset = false;
+        setpts.target_torque = 0;
+        return;
+      }
+
+      if (actual.amk_status.error) {
+        if (!state.is_resetting) {
+          state.is_resetting = true;
+          state.reset_start_time = this->now();
+        } else if ((this->now() - state.reset_start_time).seconds() > 5.0) {
+          RCLCPP_ERROR(this->get_logger(), "Falownik ubity - brak reakcji po 5s, odcinam silnik z obwodu logicznego!");
+          state.is_cut_off = true;
+          state.is_resetting = false;
+          setpts.amk_control.inverter_on = false;
+          setpts.amk_control.enable = false;
+          setpts.amk_control.dc_on = false;
+          setpts.amk_control.error_reset = false;
+          setpts.target_torque = 0;
+          return;
+        }
+        
+        // Jesteśmy w trakcie resetu - tłuczemy komendę error_reset, podtrzymując bity sterujące
+        setpts.amk_control.error_reset = true;
+        setpts.amk_control.inverter_on = true; 
+        setpts.amk_control.enable = true;
+        setpts.amk_control.dc_on = true;
+        setpts.target_torque = 0;
+      } else {
+        // Wszystko gra
+        state.is_resetting = false;
+        setpts.amk_control.error_reset = false;
+        setpts.target_torque = target_tq;
+        
+        // Zabezpieczenie powrotu z błędu
+        setpts.amk_control.inverter_on = true; 
+        setpts.amk_control.enable = true;
+        setpts.amk_control.dc_on = true;
+      }
+    };
+
+    handle_motor(amk_front_left_actual_values1, amk_front_left_setpoints, fl_state, fl_tq);
+    handle_motor(amk_front_right_actual_values1, amk_front_right_setpoints, fr_state, fr_tq);
+    handle_motor(amk_rear_left_actual_values1, amk_rear_left_setpoints, rl_state, rl_tq);
+    handle_motor(amk_rear_right_actual_values1, amk_rear_right_setpoints, rr_state, rr_tq);
     break;
+  }
 
   case StateMachine::SWITCH_OFF:
     amk_front_left_setpoints.amk_control.inverter_on = false;
@@ -356,7 +424,7 @@ void AmkNode::on_update(StateMachine state)
     break;
 
   case StateMachine::ERROR_RESET:
-    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "[ERROR_RESET]Waiting for error reset");
+    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "[ERROR_RESET] Waiting for error reset");
     rclcpp::sleep_for(10ms);
     break;
 
