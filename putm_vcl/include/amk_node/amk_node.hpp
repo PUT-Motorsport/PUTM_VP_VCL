@@ -7,6 +7,7 @@
 #include <putm_vcl_interfaces/msg/amk_setpoints.hpp>
 #include <putm_vcl_interfaces/msg/rtd.hpp>
 #include <putm_vcl_interfaces/msg/setpoints.hpp>
+#include "putm_vcl_interfaces/msg/inverters_status.hpp"
 #include <rclcpp/rclcpp.hpp>
 
 
@@ -53,6 +54,7 @@ private:
     rclcpp::Publisher<putm_vcl_interfaces::msg::AmkSetpoints>::SharedPtr amk_rear_left_setpoints_publisher;
     rclcpp::Publisher<putm_vcl_interfaces::msg::AmkSetpoints>::SharedPtr amk_rear_right_setpoints_publisher;
     rclcpp::Publisher<putm_vcl_interfaces::msg::StateMachine>::SharedPtr state_machine_publisher;
+    rclcpp::Publisher<putm_vcl_interfaces::msg::InvertersStatus>::SharedPtr inverters_status_publisher;
 
     rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_left_actual_values1_subscriber;
     rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_right_actual_values1_subscriber;
@@ -77,6 +79,7 @@ private:
     putm_vcl_interfaces::msg::Setpoints setpoints;
     putm_vcl_interfaces::msg::Rtd rtd;
     putm_vcl_interfaces::msg::StateMachine state_machine;
+    putm_vcl_interfaces::msg::InvertersStatus inverters_status_msg;
 
     bool check_rtd();
     bool check_dc_on();

@@ -12,6 +12,7 @@ AmkNode::AmkNode()
     : Node("amk_node"),
       state(StateMachine::UNDEFINED),
       state_machine_publisher(this->create_publisher<msg::StateMachine>("state_machine", 1)),
+      inverters_status_publisher(this->create_publisher<msg::InvertersStatus>("inverters_status", 1)),
       amk_front_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/left/setpoints", 1)),
       amk_front_right_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/front/right/setpoints", 1)),
       amk_rear_left_setpoints_publisher(this->create_publisher<msg::AmkSetpoints>("amk/rear/left/setpoints", 1)),
@@ -88,13 +89,43 @@ void AmkNode::amk_state_machine_watchdog_callback()
   state_machine_publisher->publish(state_machine);
 }
 
+// void AmkNode::amk_setpoints_callback()
+// {
+//   amk_front_left_setpoints_publisher->publish(amk_front_left_setpoints);
+//   amk_front_right_setpoints_publisher->publish(amk_front_right_setpoints);
+//   amk_rear_left_setpoints_publisher->publish(amk_rear_left_setpoints);
+//   amk_rear_right_setpoints_publisher->publish(amk_rear_right_setpoints);
+// }
+
 void AmkNode::amk_setpoints_callback()
 {
+  inverters_status_msg.is_limp_home_active = false;
+
+  // Funkcja pomocnicza Lambda: resetuje tylko ten falownik, który padł
+  auto evaluate_inverter = [&](const msg::AmkActualValues1& actual, msg::AmkSetpoints& setpoints) -> uint8_t {
+      if (actual.amk_status.error) {
+          setpoints.amk_control.error_reset = true; 
+          inverters_status_msg.is_limp_home_active = true; 
+          return 1; // 1 = LIMP_HOME / RESETOWANIE
+      } else {
+          setpoints.amk_control.error_reset = false;
+          return 0; // 0 = OK
+      }
+  };
+
+  inverters_status_msg.fl_state = evaluate_inverter(amk_front_left_actual_values1, amk_front_left_setpoints);
+  inverters_status_msg.fr_state = evaluate_inverter(amk_front_right_actual_values1, amk_front_right_setpoints);
+  inverters_status_msg.rl_state = evaluate_inverter(amk_rear_left_actual_values1, amk_rear_left_setpoints);
+  inverters_status_msg.rr_state = evaluate_inverter(amk_rear_right_actual_values1, amk_rear_right_setpoints);
+
+  inverters_status_publisher->publish(inverters_status_msg);
+
   amk_front_left_setpoints_publisher->publish(amk_front_left_setpoints);
   amk_front_right_setpoints_publisher->publish(amk_front_right_setpoints);
   amk_rear_left_setpoints_publisher->publish(amk_rear_left_setpoints);
   amk_rear_right_setpoints_publisher->publish(amk_rear_right_setpoints);
 }
+
 
 bool AmkNode::check_rtd()
 {
@@ -108,12 +139,23 @@ bool AmkNode::check_dc_on()
 
 }
 
+// bool AmkNode::check_inv_errors()
+// {
+//   return (amk_front_left_actual_values1.amk_status.error || amk_front_right_actual_values1.amk_status.error || amk_rear_left_actual_values1.amk_status.error ||
+//           amk_rear_right_actual_values1.amk_status.error) == true;
+//   // return (amk_rear_left_actual_values1.amk_status.error ||
+//   //         amk_rear_right_actual_values1.amk_status.error) == true;
+// }
+
 bool AmkNode::check_inv_errors()
 {
-  return (amk_front_left_actual_values1.amk_status.error || amk_front_right_actual_values1.amk_status.error || amk_rear_left_actual_values1.amk_status.error ||
-          amk_rear_right_actual_values1.amk_status.error) == true;
-  // return (amk_rear_left_actual_values1.amk_status.error ||
-  //         amk_rear_right_actual_values1.amk_status.error) == true;
+  int error_count = 0;
+  if (amk_front_left_actual_values1.amk_status.error) error_count++;
+  if (amk_front_right_actual_values1.amk_status.error) error_count++;
+  if (amk_rear_left_actual_values1.amk_status.error) error_count++;
+  if (amk_rear_right_actual_values1.amk_status.error) error_count++;
+
+  return error_count >= 3; 
 }
 
 bool AmkNode::check_quit_inverter_on()
@@ -128,24 +170,36 @@ bool AmkNode::system_ready()
   return ( amk_rear_left_actual_values1.amk_status.system_ready && amk_rear_right_actual_values1.amk_status.system_ready &&
            amk_front_left_actual_values1.amk_status.system_ready && amk_front_right_actual_values1.amk_status.system_ready) == true;
 }
+// bool AmkNode::check_inv_on()
+// {
+//   return (amk_front_left_actual_values1.amk_status.quit_inverter_on && amk_front_right_actual_values1.amk_status.quit_inverter_on &&
+//           amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_inverter_on &&
+//          amk_front_left_actual_values1.amk_status.quit_dc_on && amk_front_right_actual_values1.amk_status.quit_dc_on &&
+//          amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on&&
+//          amk_front_left_actual_values1.amk_status.inverter_on && amk_front_right_actual_values1.amk_status.inverter_on &&
+//           amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.inverter_on &&
+//          amk_front_left_actual_values1.amk_status.dc_on && amk_front_right_actual_values1.amk_status.dc_on &&
+//          amk_rear_left_actual_values1.amk_status.dc_on && amk_rear_right_actual_values1.amk_status.dc_on) == true;
+//   // return (
+//   //         amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_inverter_on &&
+          
+//   //         amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on&&
+          
+//   //         amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.inverter_on &&
+          
+//   //         amk_rear_left_actual_values1.amk_status.dc_on && amk_rear_right_actual_values1.amk_status.dc_on) == true;
+// }
+
 bool AmkNode::check_inv_on()
 {
-  return (amk_front_left_actual_values1.amk_status.quit_inverter_on && amk_front_right_actual_values1.amk_status.quit_inverter_on &&
-          amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_inverter_on &&
-         amk_front_left_actual_values1.amk_status.quit_dc_on && amk_front_right_actual_values1.amk_status.quit_dc_on &&
-         amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on&&
-         amk_front_left_actual_values1.amk_status.inverter_on && amk_front_right_actual_values1.amk_status.inverter_on &&
-          amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.inverter_on &&
-         amk_front_left_actual_values1.amk_status.dc_on && amk_front_right_actual_values1.amk_status.dc_on &&
-         amk_rear_left_actual_values1.amk_status.dc_on && amk_rear_right_actual_values1.amk_status.dc_on) == true;
-  // return (
-  //         amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_inverter_on &&
-          
-  //         amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.quit_dc_on&&
-          
-  //         amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.inverter_on &&
-          
-  //         amk_rear_left_actual_values1.amk_status.dc_on && amk_rear_right_actual_values1.amk_status.dc_on) == true;
+  int ready_inverters = 0;
+
+  if (amk_front_left_actual_values1.amk_status.quit_inverter_on && amk_front_left_actual_values1.amk_status.quit_dc_on && amk_front_left_actual_values1.amk_status.inverter_on && amk_front_left_actual_values1.amk_status.dc_on) ready_inverters++;
+  if (amk_front_right_actual_values1.amk_status.quit_inverter_on && amk_front_right_actual_values1.amk_status.quit_dc_on && amk_front_right_actual_values1.amk_status.inverter_on && amk_front_right_actual_values1.amk_status.dc_on) ready_inverters++;
+  if (amk_rear_left_actual_values1.amk_status.quit_inverter_on && amk_rear_left_actual_values1.amk_status.quit_dc_on && amk_rear_left_actual_values1.amk_status.inverter_on && amk_rear_left_actual_values1.amk_status.dc_on) ready_inverters++;
+  if (amk_rear_right_actual_values1.amk_status.quit_inverter_on && amk_rear_right_actual_values1.amk_status.quit_dc_on && amk_rear_right_actual_values1.amk_status.inverter_on && amk_rear_right_actual_values1.amk_status.dc_on) ready_inverters++;
+
+  return ready_inverters >= 2; 
 }
 
 bool AmkNode::all_inv_on()

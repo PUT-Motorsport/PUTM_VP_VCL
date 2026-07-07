@@ -47,7 +47,8 @@ rosidl_generate_interfaces(
   "msg/Pdu/PduChannel.msg"
   "msg/CurrentSensor/CurrentSensor.msg"
   "msg/IvtCurrent/IvtCurrent.msg"
-  "msg/SteeringWheel/SteeringWheel.msg")
+  "msg/SteeringWheel/SteeringWheel.msg"
+  "msg/InvertersStatus/InvertersStatus.msg")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
