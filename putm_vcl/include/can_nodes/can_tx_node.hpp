@@ -19,14 +19,17 @@ private:
   putm_ev_can::CanDriver can_tx_amk;
   putm_ev_can::CanDriver can_tx_common;
 
+  rclcpp::Subscription<putm_vcl_interfaces::msg::AmkSetpoints>::SharedPtr amk_front_left_setpoints_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkSetpoints>::SharedPtr amk_front_right_setpoints_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkSetpoints>::SharedPtr amk_rear_left_setpoints_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkSetpoints>::SharedPtr amk_rear_right_setpoints_subscriber;
 
+  rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_left_actual_values1_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_right_actual_values1_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_rear_left_actual_values1_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_rear_right_actual_values1_subscriber;
 
+  rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues2>::SharedPtr amk_front_left_actual_values2_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues2>::SharedPtr amk_front_right_actual_values2_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues2>::SharedPtr amk_rear_left_actual_values2_subscriber;
   rclcpp::Subscription<putm_vcl_interfaces::msg::AmkActualValues2>::SharedPtr amk_rear_right_actual_values2_subscriber;
@@ -54,14 +57,17 @@ private:
   void lap_timer_callback(const putm_vcl_interfaces::msg::LapTimer msg);
   void can_tx_common_callback();
 
+  void amk_fl_setpoints_callback(const putm_vcl_interfaces::msg::AmkSetpoints msg);
   void amk_fr_setpoints_callback(const putm_vcl_interfaces::msg::AmkSetpoints msg);
   void amk_rl_setpoints_callback(const putm_vcl_interfaces::msg::AmkSetpoints msg);
   void amk_rr_setpoints_callback(const putm_vcl_interfaces::msg::AmkSetpoints msg);
 
+  void amk_fl_actual1_callback(const putm_vcl_interfaces::msg::AmkActualValues1 msg);
   void amk_fr_actual1_callback(const putm_vcl_interfaces::msg::AmkActualValues1 msg);
   void amk_rl_actual1_callback(const putm_vcl_interfaces::msg::AmkActualValues1 msg);
   void amk_rr_actual1_callback(const putm_vcl_interfaces::msg::AmkActualValues1 msg);
 
+  void amk_fl_actual2_callback(const putm_vcl_interfaces::msg::AmkActualValues2 msg);
   void amk_fr_actual2_callback(const putm_vcl_interfaces::msg::AmkActualValues2 msg);
   void amk_rl_actual2_callback(const putm_vcl_interfaces::msg::AmkActualValues2 msg);
   void amk_rr_actual2_callback(const putm_vcl_interfaces::msg::AmkActualValues2 msg);
