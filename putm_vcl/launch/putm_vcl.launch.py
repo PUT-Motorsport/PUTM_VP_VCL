@@ -29,11 +29,5 @@ def generate_launch_description():
                 executable="rtd_node",
                 name="rtd_node",
             ),
-            launch_ros.actions.Node(
-                namespace="putm_vcl",
-                package="putm_vcl",
-                executable="rec_node",
-                name="rec_node",
-            ),
         ]
     )
