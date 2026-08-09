@@ -192,6 +192,14 @@ bool AmkNode::system_ready()
 
 bool AmkNode::check_inv_on()
 {
+  // Jeśli obie osie mają błędy — nie da się jechać na limp, shutdown
+  bool front_has_error = amk_front_left_actual_values1.amk_status.error || 
+                         amk_front_right_actual_values1.amk_status.error;
+  bool rear_has_error  = amk_rear_left_actual_values1.amk_status.error || 
+                         amk_rear_right_actual_values1.amk_status.error;
+
+  if (front_has_error && rear_has_error) return false;
+
   int ready_inverters = 0;
 
   if (amk_front_left_actual_values1.amk_status.quit_inverter_on && amk_front_left_actual_values1.amk_status.quit_dc_on && amk_front_left_actual_values1.amk_status.inverter_on && amk_front_left_actual_values1.amk_status.dc_on) ready_inverters++;
