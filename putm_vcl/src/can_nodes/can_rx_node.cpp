@@ -178,6 +178,9 @@ void CanRxNode::process_common_frame(const can_frame& frame) {
         bms_hv_main.temp_max = can_bms_hv_main.temp_max;
         bms_hv_main.temp_avg = can_bms_hv_main.temp_avg;
         bms_hv_main.soc = can_bms_hv_main.soc;
+        bms_hv_main.ok = can_bms_hv_main.ok;
+        bms_hv_main.precharge = can_bms_hv_main.precharge;
+        bms_hv_main.ts_on = can_bms_hv_main.ts_on;
         bms_hv_main_publisher->publish(bms_hv_main);
         break;
       }
