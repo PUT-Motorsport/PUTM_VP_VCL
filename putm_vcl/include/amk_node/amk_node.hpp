@@ -86,6 +86,8 @@ private:
     bool check_inv_on();
     bool all_inv_on();
 
+    void update_motor_states();
+
     void rtd_callback(const putm_vcl_interfaces::msg::Rtd::SharedPtr msg);
     void setpoints_callback(const putm_vcl_interfaces::msg::Setpoints::SharedPtr msg);
     std::function<void(const putm_vcl_interfaces::msg::AmkActualValues1::SharedPtr)> amk_actual_values1_callback_factory(

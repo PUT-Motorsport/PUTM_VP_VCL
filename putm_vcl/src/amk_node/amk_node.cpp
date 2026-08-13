@@ -110,6 +110,35 @@ void AmkNode::amk_setpoints_callback()
   amk_rear_right_setpoints_publisher->publish(amk_rear_right_setpoints);
 }
 
+// Aktualizuje stan silników (is_resetting / is_cut_off) na podstawie aktualnych
+// wartości z falowników. MUSI być wywoływana przed sprawdzeniem transitions,
+// żeby check_inv_on() itd. widziały świeże flagi w tym samym cyklu.
+void AmkNode::update_motor_states()
+{
+  auto update = [this](const auto& actual, MotorState& state) {
+    if (state.is_cut_off) return;
+
+    if (actual.amk_status.error) {
+      if (!state.is_resetting) {
+        state.is_resetting = true;
+        state.reset_start_time = this->now();
+      } else if ((this->now() - state.reset_start_time).seconds() > 5.0) {
+        RCLCPP_ERROR(this->get_logger(),
+                     "Falownik ubity - brak reakcji po 5s, odcinam silnik z obwodu logicznego!");
+        state.is_cut_off = true;
+        state.is_resetting = false;
+      }
+    } else {
+      state.is_resetting = false;
+    }
+  };
+
+  update(amk_front_left_actual_values1, fl_state);
+  update(amk_front_right_actual_values1, fr_state);
+  update(amk_rear_left_actual_values1, rl_state);
+  update(amk_rear_right_actual_values1, rr_state);
+}
+
 // Zmodyfikowane funkcje sprawdzające, które ignorują odcięte silniki 
 // (oraz te w trakcie resetu, by zapobiec niechcianym wyjściom do SWITCH_OFF)
 bool AmkNode::check_rtd()
@@ -190,6 +219,8 @@ bool AmkNode::all_inv_on()
 
 void AmkNode::amk_state_machine_callback()
 {
+  update_motor_states();
+
   for (const auto &t : transitions)
   {
     if (t.from == state && t.condition())
@@ -332,7 +363,8 @@ void AmkNode::on_update(StateMachine state)
     int16_t rl_tq = overspeed ? 0 : setpoints.rear_left.torque;
     int16_t rr_tq = overspeed ? 0 : -setpoints.rear_right.torque;
 
-    // Funkcja zarządzająca silnikami z wbudowanym systemem ratunkowym (reset/odcięcie)
+    // Funkcja ustawiająca setpointy silnika na podstawie flag ustawionych już
+    // przez update_motor_states() (nie ustawia flag - tylko je czyta)
     auto handle_motor = [this](const auto& actual, auto& setpts, MotorState& state, int16_t target_tq) {
       if (state.is_cut_off) {
         setpts.amk_control.inverter_on = false;
@@ -343,36 +375,20 @@ void AmkNode::on_update(StateMachine state)
         return;
       }
 
-      if (actual.amk_status.error) {
-        if (!state.is_resetting) {
-          state.is_resetting = true;
-          state.reset_start_time = this->now();
-        } else if ((this->now() - state.reset_start_time).seconds() > 5.0) {
-          RCLCPP_ERROR(this->get_logger(), "Falownik ubity - brak reakcji po 5s, odcinam silnik z obwodu logicznego!");
-          state.is_cut_off = true;
-          state.is_resetting = false;
-          setpts.amk_control.inverter_on = false;
-          setpts.amk_control.enable = false;
-          setpts.amk_control.dc_on = false;
-          setpts.amk_control.error_reset = false;
-          setpts.target_torque = 0;
-          return;
-        }
-        
+      if (state.is_resetting) {
         // Jesteśmy w trakcie resetu - tłuczemy komendę error_reset, podtrzymując bity sterujące
         setpts.amk_control.error_reset = true;
-        setpts.amk_control.inverter_on = true; 
+        setpts.amk_control.inverter_on = true;
         setpts.amk_control.enable = true;
         setpts.amk_control.dc_on = true;
         setpts.target_torque = 0;
       } else {
         // Wszystko gra
-        state.is_resetting = false;
         setpts.amk_control.error_reset = false;
         setpts.target_torque = target_tq;
-        
+
         // Zabezpieczenie powrotu z błędu
-        setpts.amk_control.inverter_on = true; 
+        setpts.amk_control.inverter_on = true;
         setpts.amk_control.enable = true;
         setpts.amk_control.dc_on = true;
       }
