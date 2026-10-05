@@ -146,7 +146,7 @@ void CanRxNode::process_common_frame(const can_frame& frame) {
       case can_id<SteeringWheel>: {
         auto can_steering_wheel = convert<SteeringWheel>(frame);
         msg::SteeringWheel steering_wheel;
-        steering_wheel.steering_wheel_position = can_steering_wheel.steering_wheel_position;
+        steering_wheel.steering_wheel_position = -1.0 *can_steering_wheel.steering_wheel_position;
         steering_wheel.measurement2 = can_steering_wheel.measurement2;
         steering_wheel.measurement3 = can_steering_wheel.measurement3;
         steering_wheel.measurement4 = can_steering_wheel.measurement4;
