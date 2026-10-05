@@ -11,6 +11,7 @@
 #include "putm_vcl_interfaces/msg/current_sensor.hpp"
 #include "putm_vcl_interfaces/msg/ivt_current.hpp"
 #include "putm_vcl_interfaces/msg/steering_wheel.hpp"
+#include "putm_vcl_interfaces/msg/msrb_data.hpp"
 
 #include "putm_vcl_interfaces/msg/xsens_acceleration.hpp"
 #include "putm_vcl_interfaces/msg/xsens_acceleration_hr.hpp"
@@ -55,6 +56,7 @@ class CanRxNode : public rclcpp::Node {
   rclcpp::Publisher<putm_vcl_interfaces::msg::CurrentSensor>::SharedPtr current_sensor_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::IvtCurrent>::SharedPtr ivt_current_publisher;
   rclcpp::Publisher<putm_vcl_interfaces::msg::SteeringWheel>::SharedPtr steering_wheel_publisher;
+  rclcpp::Publisher<putm_vcl_interfaces::msg::MSRBData>::SharedPtr msrb_data_publisher;
 
 
   rclcpp::Publisher<putm_vcl_interfaces::msg::AmkActualValues1>::SharedPtr amk_front_left_actual_values1_publisher;

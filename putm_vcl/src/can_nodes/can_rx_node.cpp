@@ -22,6 +22,7 @@ CanRxNode::CanRxNode()
       current_sensor_publisher(this->create_publisher<msg::CurrentSensor>("current_sensor",1)),
       ivt_current_publisher(this->create_publisher<msg::IvtCurrent>("ivt_current", 1)),
       steering_wheel_publisher(this->create_publisher<msg::SteeringWheel>("steering_wheel",1)),
+      msrb_data_publisher(this->create_publisher<msg::MSRBData>("msrb_data",1)),
 
       amk_front_left_actual_values1_publisher(this->create_publisher<msg::AmkActualValues1>("amk/front/left/actual_values1", 1)),
       amk_front_left_actual_values2_publisher(this->create_publisher<msg::AmkActualValues2>("amk/front/left/actual_values2", 1)),
@@ -151,6 +152,16 @@ void CanRxNode::process_common_frame(const can_frame& frame) {
         steering_wheel.measurement3 = can_steering_wheel.measurement3;
         steering_wheel.measurement4 = can_steering_wheel.measurement4;
         steering_wheel_publisher->publish(steering_wheel);
+        break;
+      }
+      case can_id<MSRBData>: {
+        auto can_msrb_data = convert<MSRBData>(frame);
+        msg::MSRBData msrb_data;
+        msrb_data.damper_position_f = can_msrb_data.damper_position_f;
+        msrb_data.damper_position_r = can_msrb_data.damper_position_r;
+        msrb_data.tensometer_force_f = can_msrb_data.tensometer_force_f;
+        msrb_data.tensometer_force_r = can_msrb_data.tensometer_force_r;
+        msrb_data_publisher->publish(msrb_data);
         break;
       }
       case can_id<PduChannel>: {
