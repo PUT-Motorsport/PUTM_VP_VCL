@@ -3,7 +3,9 @@ float32 vx_est
 float32 vy_est
 float32 filtered_ax
 float32 filtered_ay
+float32 filtered_yaw_rate
 float32 fz_fl
 float32 fz_fr
 float32 fz_rl
 float32 fz_rr
+bool tc_on
