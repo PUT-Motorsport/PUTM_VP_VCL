@@ -9,3 +9,4 @@ float32 fz_fr
 float32 fz_rl
 float32 fz_rr
 bool tc_on
+uint8 state
