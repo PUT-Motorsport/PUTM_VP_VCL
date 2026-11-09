@@ -1,0 +1,4 @@
+uint16 damper_position_f
+uint16 damper_position_r
+int16 tensometer_force_f
+int16 tensometer_force_r

@@ -49,6 +49,7 @@ rosidl_generate_interfaces(
   "msg/IvtCurrent/IvtCurrent.msg"
   "msg/SteeringWheel/SteeringWheel.msg"
   "msg/MSRBData/MSRBData.msg"
+  "msg/MSFBData/MSFBData.msg"
   )
 
 if(BUILD_TESTING)
