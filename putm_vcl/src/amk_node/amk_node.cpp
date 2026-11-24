@@ -358,7 +358,7 @@ void AmkNode::on_update(StateMachine state)
                       amk_rear_left_actual_values1.actual_velocity > 20000 || 
                       amk_rear_right_actual_values1.actual_velocity > 20000);
 
-    int16_t fl_tq = overspeed ? 0 : setpoints.front_left.torque;
+    int16_t fl_tq = overspeed ? 0 : -setpoints.front_left.torque;
     int16_t fr_tq = overspeed ? 0 : setpoints.front_right.torque;
     int16_t rl_tq = overspeed ? 0 : setpoints.rear_left.torque;
     int16_t rr_tq = overspeed ? 0 : -setpoints.rear_right.torque;
